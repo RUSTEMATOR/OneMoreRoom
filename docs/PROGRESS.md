@@ -218,8 +218,10 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 | 2026-09-19 | 09 | 941 / 941 (ten specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-20 | 10 | 1017 / 1017 (eleven specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-20 | run review | 1102 / 1102 (twelve specs) | 0 server, 0 client | pass |
+| 2026-09-20 | Sentry + reskin | 1268 / 1268 (thirteen specs) | 0 server, 0 client | pass |
+| 2026-09-20 | balance digest | 1315 / 1315 (fourteen specs) | 0 server, 0 client | pass |
 
-The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
+The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens) when Studio has focus — several times longer when it does not, which is Studio throttling a backgrounded process, not a hang; the `OMF_SpecRunning` attribute says which spec it is sitting in either way.
 
 ## The post-run review
 
@@ -229,11 +231,15 @@ Three empirical findings shaped it, none of them assumptions:
 
 - **~615 ms round trip**, six times the documented figure. Acceptable after a run, unacceptable anywhere near the tick.
 - **Identical payloads return drifting numbers** (0.83 / 0.82 / 0.80 on one Choice, 3.08 / 3.07 / 3.04 on one Score). The winning option and the Score *level* are stable; the floats are not. So the verdict keeps the level index, never the float.
-- **Confidence is well calibrated.** Every answer at 0.88 or above was correct; both wrong answers self-reported at 0.26 and 0.42. Hence `confidenceFloor = 0.7`, with anything below it filed as `unclassified` rather than believed.
+- **Confidence is well calibrated.** Every answer at 0.88 or above was correct; both wrong answers self-reported at 0.26 and 0.42. Hence a confidence floor, with anything below it filed as `unclassified` rather than believed — see below for why that floor is no longer a single number.
 
 One design bug the experiments caught: the root-cause question originally had no no-match option, and confidently answered "attrition" for a run in which nobody died. Adding `survived` fixed it (0.99 confidence on a survived run, 0.90 on a boss wall). `RunReview`'s spec asserts that option still exists.
 
 **Still needed from you before it can reach the API:** enable HTTP requests in Experience Settings, and add a `TYPESAFE_API_KEY` secret in Creator Hub. Until then every run simply ends without a verdict, which is the designed failure mode and is regression-tested.
+
+**Revisited against the live TypeSafe docs.** The API contract hadn't drifted, but the docs argue against a single uniform confidence floor: a wrong `frustrationLevel` is a soft miss, a wrong `rootCause` actively misleads a QA session into chasing a pattern that was never real. Split into `frustrationConfidenceFloor = 0.7` (unchanged, matches the measurement above) and `rootCauseConfidenceFloor = 0.85` (new, stricter — no equivalent measurement yet, treat it as a starting point).
+
+**Added the balance digest.** A second, aggregate use of the same API: `RunReviewService.runDigest()` batches every review this session has recorded and asks three questions across the whole set — which room type most often coincides with frustration or death, whether the difficulty curve reads front-loaded / even / back-loaded, and whether similar-depth runs feel consistent with each other. Room type per run is reconstructed from just `(seed, path)` via `FloorPlan`'s existing pure functions — telemetry never had to track it going in. Gated below 3 samples so a call is never spent on a batch too small to mean anything. It is a QA report, not a gameplay system, and it only covers runs played since the last boot — there's no Phase 13 save system yet to persist across sessions. Exposed the same way as the spec suite: `ServerStorage.OMF_RunBalanceDigest`, a BindableFunction created in the boot context, invoked with the same `task.spawn` + poll pattern (it yields — a live HTTP call).
 
 ## Setting pivot + the Signal Sentry
 
