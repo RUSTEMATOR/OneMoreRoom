@@ -12,5 +12,8 @@ return {
 		swordImpact = "rbxassetid://86702705197960",
 		playerHurt = "",
 		playerDeath = "",
+		-- Creator Store, verified insertable and free at the time of writing.
+		sentryBoltFire = "rbxassetid://135695524548843",
+		sentryBoltImpact = "rbxassetid://201858087",
 	},
 }

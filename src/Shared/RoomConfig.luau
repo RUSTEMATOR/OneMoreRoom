@@ -40,6 +40,34 @@ RoomConfig.templates = {
 	-- a zero count simply clears the moment it seals, and `reward` adds a prize the
 	-- player walks into. That is the Phase 5 acceptance criterion.
 
+	-- The Sentry room: same shape as Combat, but the encounter is entirely ranged.
+	-- Mirrors Elite's pattern of "same plumbing, different `encounter.kind`" exactly
+	-- -- a room's encounter is always ONE kind, so a mixed melee/ranged fight is a
+	-- second room type, not a branch in FloorPlan's placement code.
+	Outpost = {
+		id = "Outpost",
+		displayName = "Sentry Outpost",
+		interior = Vector3.new(44, 18, 44),
+		wallThickness = 2,
+		floorThickness = 1,
+		doorway = { width = 10, height = 12 },
+		floorColor = Color3.fromRGB(46, 48, 52),
+		wallColor = Color3.fromRGB(58, 62, 68),
+		doorColor = Color3.fromRGB(30, 32, 36),
+		-- Cyan trim, matching the Sentry's own bolt colour -- the room tells you what
+		-- is waiting inside before the door even opens.
+		trimColor = Color3.fromRGB(80, 220, 220),
+		material = Enum.Material.DiamondPlate,
+		doorMaterial = Enum.Material.Metal,
+		-- Wider radius than Combat's 15: a room built to punish standing still needs
+		-- the space for that to actually be true.
+		encounter = { kind = "Archer", minCount = 1, maxCount = 3, radius = 20 },
+		doorTravel = 12,
+		doorTime = 0.55,
+		sealDelay = 0.25,
+		clearDelay = 0.6,
+	},
+
 	Elite = {
 		id = "Elite",
 		displayName = "Elite Room",

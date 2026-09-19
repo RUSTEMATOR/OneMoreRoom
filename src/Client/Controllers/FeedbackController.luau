@@ -109,6 +109,19 @@ local function onFeedback(payload: CombatTypes.Feedback)
 	elseif payload.kind == "Died" then
 		SwingPose.stop(payload.actor)
 		playSound(AssetIds.sounds.playerDeath, soundAnchorFor(payload.actor))
+	elseif payload.kind == "RangedShot" then
+		-- "RangedShot"/"RangedImpact" are the wire names; the sentry's bolt is what a
+		-- player sees and hears.
+		playSound(AssetIds.sounds.sentryBoltFire, soundAnchorFor(payload.actor))
+	elseif payload.kind == "RangedImpact" then
+		-- The same reaction a sword hit gets on the receiving end: a flash and a
+		-- hitstop when it is the local player who was struck. A bolt should not feel
+		-- like a lesser hit than a sword just because it came from further away.
+		if payload.target == Players.LocalPlayer.Character then
+			SwingPose.hold(Players.LocalPlayer.Character, CombatConfig.feedback.hitstop)
+		end
+		flash(payload.target)
+		playSound(AssetIds.sounds.sentryBoltImpact, soundAnchorFor(payload.target))
 	end
 end
 

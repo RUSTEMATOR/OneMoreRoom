@@ -50,6 +50,35 @@ export type TargetReset = {
 	target: Model,
 }
 
-export type Feedback = SwingStarted | Hit | Dodged | Died | Respawned | TargetReset
+-- A ranged enemy loosing a shot. Separate from SwingStarted rather than reusing it:
+-- `actor` here is the enemy Model that fired, not a Player, and the two need
+-- different sounds -- a bow release is not a sword swing.
+export type RangedShot = {
+	kind: "RangedShot",
+	actor: Model,
+	weapon: string,
+}
+
+-- An arrow (or future projectile) landing on a player. Separate from `Hit`, which is
+-- what a PLAYER'S swing broadcasts: `Hit.actor` is a Player and `Hit.target` is
+-- whatever they struck, the reverse of this. Conflating them would mean an enemy's
+-- arrow either impersonates a player's swing or the player's swing impersonates a
+-- monster landing a hit, and either reading is wrong.
+export type RangedImpact = {
+	kind: "RangedImpact",
+	weapon: string,
+	target: Model,
+	position: Vector3,
+}
+
+export type Feedback =
+	SwingStarted
+	| Hit
+	| Dodged
+	| Died
+	| Respawned
+	| TargetReset
+	| RangedShot
+	| RangedImpact
 
 return {}

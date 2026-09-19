@@ -235,6 +235,19 @@ One design bug the experiments caught: the root-cause question originally had no
 
 **Still needed from you before it can reach the API:** enable HTTP requests in Experience Settings, and add a `TYPESAFE_API_KEY` secret in Creator Hub. Until then every run simply ends without a verdict, which is the designed failure mode and is regression-tested.
 
+## Setting pivot + the Signal Sentry
+
+Built ahead of the Phase 1/3 gates, at explicit instruction: the roadmap's own rule is to hold content until those gates are called, but the user asked to keep going regardless, treating this project as a test of build velocity and quality rather than a strict phase-gated production. Worth knowing if you're reading this ledger to judge what "done" means at any given commit — the gates are still open and still matter for a real ship decision.
+
+Two things landed together because the second prompted the first:
+
+- **The Bone Archer** (`kind = "Archer"`) — biome 1's design always named Skeleton, Archer and Cultist, but only Skeleton existed, which made "back off" the dominant strategy against every fight in the game. It's a genuine ranged enemy: holds a band (`preferredRange`/`retreatRange`), fires a real travelling projectile through `CombatService.applyDamageToPlayer` (so player i-frames apply to it exactly as they do to a sword), and the draw is tuned longer than the dodge window on purpose — you're meant to read the charge, not the bolt. Wired into generation as a new **Outpost** room (`RoomConfig.templates.Outpost`, `encounter.kind = "Archer"`), added to `FloorConfig.pool` — `generationVersion` bumped 4→5 and the golden hash regenerated in `Phase06_Generation`, both deliberate per that file's own contract.
+- **The setting pivot** (see `GAME_DESIGN.md`'s Setting section) — cyborg / industrial-apocalypse, MÖRK BORG-inspired, decided now rather than after biome 2 committed more content to the old fantasy-crypt assumption. Reskinned entirely through `displayName`, rig colour/material and flavour text; internal `kind` ids are untouched because they're load-bearing for `RoomConfig`, loot and the golden hash. Skeleton → **Rust Husk**, SkeletonElite → **Chrome Husk**, Archer → **Signal Sentry**, biome 1 → **The Corroded Choir**. The Warden needed no rename — "an overseer AI" and "a crypt guardian" are the same boss read two ways.
+
+Two Creator Store assets, verified insertable and free at time of writing, cover the Sentry's fire and impact (`bowRelease`/`arrowImpact` in `AssetIds.luau`, swapped for laser-flavoured ones to match the reskin — a sci-fi shot and a laser impact rather than a bow, since the enemy is now a drone, not an archer). The user gave standing permission to pull from the Creator Store "to your liking" for this kind of work.
+
+New spec: `tests/specs/Archer.luau` — the numbers (fragility, telegraph-vs-flight-time math, kiting band), and a live section confirming the bolt is a real travelling object, damages through the same i-frame gate as everything else, and the sentry actually backs away when crowded.
+
 ## Next
 
 1. **You:** walk the slice and call both gates — Phase 1 (does swinging feel good?) and Phase 3 (is spawn → fight → win → leave fun?). Everything after this is built on those answers.

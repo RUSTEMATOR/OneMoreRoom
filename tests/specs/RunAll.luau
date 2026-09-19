@@ -16,6 +16,7 @@ local SPECS = {
 	"Phase08_Weapons",
 	"Phase09_Progression",
 	"Phase10_Boss",
+	"Archer",
 	"RunReview",
 }
 

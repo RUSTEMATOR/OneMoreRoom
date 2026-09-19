@@ -6,6 +6,26 @@ A fast roguelite tower climber. Choose a door, fight, loot, upgrade, and climb. 
 
 Each floor is a small encounter, not a large map. The player starts at Floor 1 and tries to get as high as possible.
 
+## Setting
+
+Decided mid-build, deliberately before more content accreted on the old assumption: **the tower is a dead machine, not a dungeon.** Cyborg / industrial-apocalypse, in the spirit of MÖRK BORG — bleak, high-contrast, a little cruel, more chrome and rust than fantasy stone. You are not climbing a crypt; you are climbing the corpse of something that used to compute.
+
+This changes what a room *reads as*, not what it *is*. The architecture stays exactly what Phases 0–10 already built — sealed rooms, two doors, encounter then reward then exit — because that structure was never fantasy-specific. What moves is the skin:
+
+- Internal `kind` identifiers (`Skeleton`, `Archer`, `Boss = "Warden"`, ...) stay as stable technical names — they're load-bearing for `RoomConfig` encounters, loot tables and the seed's golden hash. **A player never sees a `kind` string.** What they see is `displayName`, rig colour/material, room trim and flavour text, and that's where the reskin lives.
+- "Bone" becomes corroded plate. "Candles" become failing status lights. A dungeon's stone becomes a server-cathedral's scaffolding.
+- A weapon swing, a dodge, a boss fight — the verbs don't change. Only what they're happening *to* does.
+
+Applying a new setting through data (`displayName`, colours, materials) rather than renaming `kind` keys is possible only because of the Phase 0 decision that "content is Lua data, not Studio-authored instances" — the reskin is a diff, not a rebuild.
+
+## The MVP
+
+One run must work end to end before any content scaling:
+
+> launch → Floor 1 → fight → choose a path → take loot → reach Floor 10 → fight the Warden → die → return to lobby → buy a permanent upgrade → start a new run
+
+That is Phases 0–13. Everything after is content, polish, balancing, and retention.
+
 ## The MVP
 
 One run must work end to end before any content scaling:
@@ -37,7 +57,7 @@ Where a door leads is keyed on the room you are standing in, not just the depth 
 
 ## Room types
 
-Combat (fight), Elite (harder enemy, better reward), Treasure (no combat, choose one reward), Healing (restore), Shop (spend gold), Event (something unusual). Six is enough.
+Combat (fight), Outpost (ranged-only fight — the Signal Sentry's room), Elite (harder enemy, better reward), Treasure (no combat, choose one reward), Healing (restore), Shop (spend gold), Event (something unusual). Seven is enough.
 
 ## Seeds
 
@@ -53,9 +73,9 @@ Generation lives in `Shared/FloorPlan.luau` as a pure function of `(seed, depth,
 
 ## Biomes
 
-**The Forgotten Crypt** (floors 1–10) — stone, candles, bones, underground architecture. Enemies: Skeleton, Archer, Cultist. Boss: The Warden.
+**The Corroded Choir** (floors 1–10) — a dead server-cathedral: rusted plate, exposed cabling, failing neon votives instead of candles, corridors that used to route signal instead of pilgrims. Enemies: Rust Husk (`Skeleton`), Signal Sentry (`Archer`) — a tripod targeting drone, fires a neon rail-bolt from range — Chrome Husk (`SkeletonElite`), and a third enemy still to design, keeping the `Cultist`-shaped role from the original outline: something that still believes the machine speaks. Boss: The Warden — reads equally well as a crypt guardian or a mad overseer AI, so it needed no rename, only a re-read.
 
-**Cursed Forest** (floors 11–20) — different rooms, enemies, hazards, music, boss. Not built until 1–10 is genuinely playable.
+**Biome 2** (floors 11–20) — different rooms, enemies, hazards, music, boss, same setting family as biome 1 rather than the original "Cursed Forest" (that name was written before the setting pivot and no longer fits). Not built until 1–10 is genuinely playable.
 
 ## Co-op
 

@@ -9,7 +9,11 @@ local FloorConfig = {}
 -- Bumped deliberately whenever generation is *meant* to change. The golden-hash spec
 -- pairs its committed constant with this, so an intentional change is one line plus a
 -- regenerated hash, and an unintentional one is a loud failure.
-FloorConfig.generationVersion = 4
+--
+-- v5: added "Outpost" to the pool (a ranged-only encounter room, the Signal Sentry's
+-- home). Adding to the pool changes `Rng:int(1, #pool)` for every existing seed, which
+-- is the expected cost of adding content -- see the note on FloorConfig.pool below.
+FloorConfig.generationVersion = 5
 
 FloorConfig.run = {
 	firstFloor = 1,
@@ -40,6 +44,7 @@ FloorConfig.pool = {
 	"Treasure",
 	"Elite",
 	"Healing",
+	"Outpost",
 }
 
 -- Every tenth floor is a boss, regardless of what the seed would otherwise pick.
