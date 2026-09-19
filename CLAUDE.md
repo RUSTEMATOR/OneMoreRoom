@@ -104,7 +104,7 @@ Available on demand via `mcp__Roblox_Studio__skill`. Use them instead of guessin
 
 - **In Edit mode, `RunService:IsServer()` *and* `IsClient()` both return `true`.** Never branch on those — use `IsRunning()` / `IsStudio()`.
 - `character_navigation` and `user_keyboard_input` are **Client-datamodel only** and require play mode.
-- `screen_capture` is edit-time oriented and takes no datamodel selector. For deterministic visual evidence, stop play and capture in Edit with explicit camera coordinates.
+- `screen_capture` is edit-time oriented and takes no datamodel selector. **Confirmed: during Play it returns a blank magenta frame.** For visual evidence, stop play and capture in Edit with explicit camera coordinates — but note that anything built at runtime (the dummy, enemies) does not exist in Edit, so it cannot be photographed at all. Structured JSON from the spec suite is the real evidence.
 - `get_console_output` has no severity filter, no time filter, and no clear. Use `LogService:GetLogHistory()` — it returns structured `{ message, timestamp, messageType }`.
 - `wait_job_finished` needs a `jobId` from an `async: true` call; no tool in the QA loop exposes that. Bounded-poll instead.
 - `search_game_tree` caps at 200 nodes, default depth 3. Always scope with `path`.

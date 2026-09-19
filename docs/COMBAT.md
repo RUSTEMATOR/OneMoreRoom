@@ -38,9 +38,17 @@ A modifier is a data row: *Rusted Dagger — +15% attack speed, −10% damage*. 
 
 ## Enemies
 
-One state machine, reused: IDLE → DETECT → CHASE → ATTACK → COOLDOWN → CHASE.
+One state machine, reused: IDLE → NOTICE → CHASE → ATTACK → COOLDOWN → CHASE, plus DEAD. Ticked for every enemy on a single Heartbeat, same discipline as player combat.
 
-The Skeleton is the first and defines the shape: health, damage, attack cooldown, death, hit reaction, basic animation. Not an elaborate AI system.
+The Skeleton is the first and defines the shape: health, damage, attack cooldown, death, hit reaction, a procedural lunge. Not an elaborate AI system.
+
+It is a minimal R6 Humanoid rig built from `EnemyConfig.kinds.Skeleton.rig` — a Humanoid rather than CFrame movement, because `Humanoid:MoveTo` gives real collision, so it bumps into walls instead of walking through them. Proper `PathfindingService` navigation arrives with rooms.
+
+Two behaviours worth knowing: **range is re-checked at the moment the blow lands**, not when the swing starts, so stepping out of a telegraphed attack works. And **getting hit by someone it had not noticed pulls aggro**, so you cannot freely snipe one enemy out of a group.
+
+Enemies damage players through `CombatService.applyDamageToPlayer`, so i-frames apply to them for free, and they take damage by registering as `Damageable`s, so the sword arc never branches on target type.
+
+A practice skeleton spawns next to the training dummy (`EnemyConfig.practice`) and respawns after it dies, so the combat loop is playable before floors exist. Like the dummy it lives in `Workspace/Static`, never `Generated`.
 
 ## Bosses
 

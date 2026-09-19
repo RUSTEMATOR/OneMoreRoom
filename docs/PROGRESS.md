@@ -7,7 +7,7 @@ Remote: https://github.com/RUSTEMATOR/OneMoreRoom
 
 ## Current milestone
 
-Phase 2 — Skeleton enemy
+Phase 3 — First complete room
 
 ## Awaiting you
 
@@ -54,6 +54,17 @@ Phase 2 proceeds on the assumption the gate passes. If it does not, Phase 2's en
 - [x] `Phase01_Combat` — 79 checks including an end-to-end swing against the real dummy
 - [x] **Acceptance playtest passed: 94/94 checks across both specs, zero errors and zero warnings in both datamodels**
 
+### Phase 2 — Skeleton enemy
+
+- [x] `EnemyConfig` — Skeleton stats derived from the Phase 1 anchor (14 damage ≈ 7 player hits; 60 HP = 4 sword swings)
+- [x] `EnemyBuilder` — minimal R6 Humanoid rig built from data, so `Humanoid:MoveTo` gives real wall collision
+- [x] `EnemyService` — IDLE → NOTICE → CHASE → ATTACK → COOLDOWN → DEAD on one Heartbeat, detection, leashing, aggro-on-hit, stagger, procedural lunge, generation-guarded despawn
+- [x] Enemies register as `Damageable`s and damage players through `applyDamageToPlayer`, so the sword arc and player i-frames both work unchanged
+- [x] `RunSessionService.addGold` — kills award gold to an active run, and are worth nothing outside one
+- [x] Practice skeleton in `Workspace/Static`, respawning, so the loop is playable before floors exist
+- [x] `Phase02_Skeleton` — 42 checks
+- [x] **Acceptance playtest passed: 136/136 checks across three specs, zero errors and zero warnings in both datamodels**
+
 ## Known issues
 
 - **`StarterCharacterScripts.Health` is not synced.** The node was added to `default.project.json`, but Rojo does not hot-reload the project file and a restart would drop the plugin connection. Harmless right now: `PlayerService.bindCharacter` destroys the default regen script as a backstop, and the acceptance run confirms no `Health` script survives on the character. **Fix by restarting `rojo serve` at the start of the next session.**
@@ -72,14 +83,14 @@ Phase 2 proceeds on the assumption the gate passes. If it does not, Phase 2's en
 |---|---|---|---|---|
 | 2026-09-19 | 00 | 14 / 14 | 0 server, 0 client | pass |
 | 2026-09-19 | 01 | 94 / 94 (both specs) | 0 server, 0 client | pass |
+| 2026-09-19 | 02 | 136 / 136 (three specs) | 0 server, 0 client | pass |
 
-The Phase 1 suite spends ~12 s in real waits (respawn, cooldowns, regen, auto-reset). That is not a hang.
+The suite now spends ~25 s in real waits (respawn, cooldowns, regen, chase, despawn). That is not a hang.
 
 ## Next
 
-1. **You:** run the manual checklist and call the Phase 1 gate
-2. Phase 2 — the Skeleton: one enemy, one state machine (IDLE → DETECT → CHASE → ATTACK → COOLDOWN), health, contact damage, death, hit reaction, and a reward drop
-3. Phase 3 — the first complete room, and the vertical-slice gate
+1. **You:** run the manual checklist and call the Phase 1 gate, then go fight the practice skeleton
+2. Phase 3 — the first complete room: enter → door locks → enemies spawn → clear → door opens → exit. Carries the vertical-slice gate
 
 ## Phase gates
 
