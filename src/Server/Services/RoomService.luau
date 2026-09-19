@@ -17,6 +17,7 @@ local EnemyConfig = require(ReplicatedStorage.Shared.EnemyConfig)
 local RoomConfig = require(ReplicatedStorage.Shared.RoomConfig)
 local EnemyService = require(script.Parent.EnemyService)
 local PlayerService = require(script.Parent.PlayerService)
+local RunSessionService = require(script.Parent.RunSessionService)
 local RoomBuilder = require(script.Parent.Parent.World.RoomBuilder)
 local WorldFolders = require(script.Parent.Parent.World.WorldFolders)
 
@@ -31,6 +32,8 @@ export type Room = {
 	floor: BasePart,
 	entranceDoor: BasePart,
 	exitDoor: BasePart,
+	prize: BasePart?,
+	prizeTaken: boolean,
 
 	phase: RoomPhase,
 	phaseEndsAt: number,
@@ -42,6 +45,7 @@ local rooms: { [number]: Room } = {}
 local nextId = 0
 
 RoomService.onCleared = Instance.new("BindableEvent")
+RoomService.onPrizeTaken = Instance.new("BindableEvent")
 RoomService.onSealed = Instance.new("BindableEvent")
 
 local function spec(template: string)
@@ -191,6 +195,53 @@ function RoomService.reset(room: Room)
 	moveDoor(room, room.exitDoor, false)
 end
 
+-- ------------------------------------------------------------------ prize
+
+-- Walked into rather than pressed: there is no interaction UI until Phase 12, and a
+-- proximity pickup needs none. Polled on the same Heartbeat as everything else.
+local function stepPrize(room: Room, dt: number)
+	local prize = room.prize
+	if prize == nil or room.prizeTaken or prize.Parent == nil then
+		return
+	end
+
+	local prizeSpec = RoomConfig.prize
+	prize.CFrame = prize.CFrame * CFrame.Angles(0, prizeSpec.spinPerSecond * dt, 0)
+
+	local roomSpec = spec(room.template)
+	local reward = roomSpec.reward
+	if reward == nil then
+		return
+	end
+
+	for _, state in PlayerService.all() do
+		if not state.alive then
+			continue
+		end
+		local root = state.rootPart
+		if root == nil or root.Parent == nil then
+			continue
+		end
+		if (root.Position - prize.Position).Magnitude > prizeSpec.pickupRadius then
+			continue
+		end
+
+		room.prizeTaken = true
+		if reward.kind == "gold" then
+			RunSessionService.addGold(reward.amount)
+		elseif reward.kind == "heal" then
+			-- A fraction of max health, so it keeps its value once Phase 9's
+			-- permanent upgrades raise the ceiling.
+			PlayerService.setHealth(state.player, state.health + state.maxHealth * reward.amount)
+		end
+
+		prize:Destroy()
+		room.prize = nil
+		RoomService.onPrizeTaken:Fire(room, state.player, reward.kind, reward.amount)
+		return
+	end
+end
+
 -- --------------------------------------------------------------------- tick
 
 local function stepRoom(room: Room, now: number)
@@ -243,10 +294,11 @@ local function stepRoom(room: Room, now: number)
 	end
 end
 
-local function step()
+local function step(dt: number)
 	local now = os.clock()
 	for _, room in rooms do
 		stepRoom(room, now)
+		stepPrize(room, dt)
 	end
 end
 
@@ -266,6 +318,8 @@ function RoomService.create(template: string, cframe: CFrame, parent: Instance?)
 		floor = parts.floor,
 		entranceDoor = parts.entranceDoor,
 		exitDoor = parts.exitDoor,
+		prize = parts.prize,
+		prizeTaken = false,
 		phase = "Open",
 		phaseEndsAt = 0,
 		enemyIds = {},

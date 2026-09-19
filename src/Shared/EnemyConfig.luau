@@ -50,6 +50,43 @@ EnemyConfig.kinds = {
 			lungeAngle = 24,
 		},
 	},
+
+	-- The Elite is a data entry, not a new enemy: same state machine, harder numbers.
+	-- 150 HP is 9 sword swings and 22 damage kills a full-health player in 5 hits, so
+	-- it is a genuine threat without being a boss — that is Phase 10.
+	SkeletonElite = {
+		id = "SkeletonElite",
+		displayName = "Elite Skeleton",
+
+		maxHealth = 150,
+		damage = 22,
+		walkSpeed = 13,
+
+		detectRange = 40,
+		leashRange = 70,
+		attackRange = 7.5,
+
+		noticeTime = 0.3,
+		-- Still readable, but tighter than the basic skeleton's 0.45.
+		attackWindup = 0.38,
+		attackRecovery = 0.4,
+		attackCooldown = 0.95,
+
+		staggerTime = 0.16,
+		despawnDelay = 3.0,
+
+		goldReward = 26,
+
+		rig = {
+			torsoSize = Vector3.new(2.6, 2.6, 1.3),
+			headSize = Vector3.new(1.7, 1.7, 1.7),
+			rootSize = Vector3.new(2.6, 2.6, 1.3),
+			boneColor = Color3.fromRGB(206, 196, 224),
+			torsoColor = Color3.fromRGB(122, 104, 150),
+			material = Enum.Material.Slate,
+			lungeAngle = 28,
+		},
+	},
 }
 
 -- A practice skeleton next to the training dummy, so the combat loop is playable

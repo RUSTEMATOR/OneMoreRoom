@@ -16,6 +16,7 @@ export type RoomParts = {
 	floor: BasePart,
 	entranceDoor: BasePart,
 	exitDoor: BasePart,
+	prize: BasePart?,
 	interiorCentre: Vector3,
 }
 
@@ -150,11 +151,33 @@ function RoomBuilder.build(templateId: string): RoomParts?
 	)
 	trim.Parent = model
 
+	-- A prize, when the template has one. Reward rooms have no encounter, so they
+	-- clear the moment they seal and this is the only thing in them.
+	local prize: BasePart? = nil
+	if spec.reward ~= nil then
+		local prizeSpec = RoomConfig.prize
+		local colour = if spec.reward.kind == "heal"
+			then Color3.fromRGB(96, 214, 168)
+			else Color3.fromRGB(226, 184, 74)
+		local made = makePart(
+			"Prize",
+			prizeSpec.size,
+			Vector3.new(0, prizeSpec.height, 0),
+			colour,
+			Enum.Material.Neon
+		)
+		made.CanCollide = false
+		made.CanQuery = false
+		made.Parent = model
+		prize = made
+	end
+
 	return {
 		model = model,
 		floor = floor,
 		entranceDoor = entranceDoor,
 		exitDoor = exitDoor,
+		prize = prize,
 		interiorCentre = Vector3.new(0, interior.Y / 2, 0),
 	}
 end

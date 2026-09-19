@@ -7,7 +7,7 @@ Remote: https://github.com/RUSTEMATOR/OneMoreRoom
 
 ## Current milestone
 
-Phase 5 — Room types
+Phase 5 — Room types (partial); Phase 6 — Seeded generation next
 
 ## Awaiting you
 
@@ -85,6 +85,19 @@ Phase 2 proceeds on the assumption the gate passes. If it does not, Phase 2's en
 - [x] `Phase04_Floor` — 38 checks, including returning the tester to spawn so the manual pass is not left stranded
 - [x] **Acceptance playtest passed: 211/211 checks across five specs, run twice, zero errors and zero warnings in both datamodels**
 
+### Phase 5 — Room types (partial: 4 of 6)
+
+Built: **Combat, Elite, Treasure, Healing.** All four are pure data entries — `RoomService` has no per-type branching, which is the actual Phase 5 acceptance criterion.
+
+- [x] `SkeletonElite` — a data entry, not a new enemy: same state machine, 150 HP, 22 damage, 26 gold. Its telegraph still outlasts the dodge window, because an elite you cannot dodge is unfair rather than hard.
+- [x] Reward rooms — a template with an empty `enemySpawns` clears itself the moment it seals, so no new code path was needed
+- [x] `reward = { kind = "gold" | "heal" }` and a spinning prize the player walks into. No interaction UI, because there is none until Phase 12 and proximity needs none. The heal is a **fraction of max health**, so it keeps its value once Phase 9 raises the ceiling.
+- [x] Floor rotation is now Combat → Treasure → Combat → Elite → Healing: fight, breathe, fight harder, recover
+- [x] `Phase05_RoomTypes` — 72 checks
+- [x] **Acceptance playtest passed: 283/283 checks across six specs, run twice, zero errors and zero warnings in both datamodels**
+
+**Not built: Shop and Event.** A shop needs gold worth spending (Phase 7 loot) and a way to choose (Phase 12 UI); building it now would mean faking both. The spec asserts they stay absent so nobody half-adds one. They are a data entry away once those phases land.
+
 #### Fixed during Phase 3
 
 - **Practice skeleton respawn fired on any enemy death.** `onKilled` is a service-wide event and the listener did not filter by id, so killing any skeleton respawned the practice one on top of the live one, compounding each time. Found by auditing against the newly installed `roblox-engineer` skill's connection-leak checklist. `onKilled` now leads with the enemy id, and Phase 2 regresses it.
@@ -113,13 +126,15 @@ Phase 2 proceeds on the assumption the gate passes. If it does not, Phase 2's en
 | 2026-09-19 | 02 | 136 / 136 (three specs) | 0 server, 0 client | pass |
 | 2026-09-19 | 03 | 173 / 173 (four specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 04 | 211 / 211 (five specs, ×2 runs) | 0 server, 0 client | pass |
+| 2026-09-19 | 05 | 283 / 283 (six specs, ×2 runs) | 0 server, 0 client | pass |
 
-The suite now spends ~45 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
+The suite now spends ~55 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
 
 ## Next
 
 1. **You:** walk the slice and call both gates — Phase 1 (does swinging feel good?) and Phase 3 (is spawn → fight → win → leave fun?). Everything after this is built on those answers.
-2. Phase 5 — room types: Elite, Treasure, Healing, Shop, Event, all data-driven from `RoomConfig.templates`.
+2. Decide whether Shop and Event should wait for Phase 7/12 as I assumed, or get placeholder versions sooner.
+3. Phase 6 — seeded procedural generation: the same seed must produce an identical run. This is the QA keystone; every later bug report carries a seed.
 
 ## Where to go in-game
 

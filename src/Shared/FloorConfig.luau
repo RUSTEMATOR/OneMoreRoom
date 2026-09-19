@@ -24,10 +24,15 @@ FloorConfig.layout = {
 	exitTriggerWidth = 12,
 }
 
--- Phase 5 adds Elite, Treasure, Healing, Shop and Event. Phase 6 makes the choice
--- seeded rather than fixed.
+-- A fixed rotation until Phase 6 makes the choice seeded. The shape matters more than
+-- the order: fight, breathe, fight harder, recover. Treasure lands early so the player
+-- sees a reward before the Elite, and Healing lands straight after it.
 FloorConfig.sequence = {
 	"Combat",
+	"Treasure",
+	"Combat",
+	"Elite",
+	"Healing",
 }
 
 function FloorConfig.templateForFloor(depth: number): string
