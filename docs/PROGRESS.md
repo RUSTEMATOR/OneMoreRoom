@@ -7,7 +7,7 @@ Remote: https://github.com/RUSTEMATOR/OneMoreRoom
 
 ## Current milestone
 
-Phase 5 — Room types (partial); Phase 6 — Seeded generation next
+Phase 7 — Loot
 
 ## Awaiting you
 
@@ -98,6 +98,26 @@ Built: **Combat, Elite, Treasure, Healing.** All four are pure data entries — 
 
 **Not built: Shop and Event.** A shop needs gold worth spending (Phase 7 loot) and a way to choose (Phase 12 UI); building it now would mean faking both. The spec asserts they stay absent so nobody half-adds one. They are a data entry away once those phases land.
 
+### Phase 6 — Seeded procedural generation
+
+The QA keystone. Every bug report can now carry a seed and a path and be replayed exactly.
+
+- [x] `FloorPlan` — generation as a **pure function** of `(seed, depth, template)` returning plain data, entirely separate from the code that builds Instances. This is what makes the reproducibility test arithmetic rather than a playthrough.
+- [x] **Two exit doors per cleared room**, offering two different seeded room types — the "choose a door" the pitch opens with. Where a door leads is keyed on the room you are in, so the choice genuinely branches without making the test space exponential.
+- [x] Seeded room type, door options, enemy count and placement, and reward amounts. Placement uses bounded rejection sampling with a deterministic fallback, so rigs never stack and physics — which is not seeded — never gets to decide anything.
+- [x] Encounter size grows with depth
+- [x] Random seed per run, shown in the HUD and logged, over the previously-unused `RunStateChanged` remote
+- [x] `RunState.path` records each door taken; `RunSessionService.describe()` prints `seed:839271 path:1,2,1`
+- [x] Golden-hash regression with the constant committed in the spec, paired with `FloorConfig.generationVersion`
+- [x] `Phase06_Generation` — 300+ checks, nearly all pure
+- [x] **Acceptance playtest passed: 578/578 checks across seven specs, run twice, zero errors and zero warnings in both datamodels**
+
+#### Fixed during Phase 6
+
+- **`Rng` sub-stream keys collided.** Parts were folded with no separator, so `Rng.new(s, "k", 1, 23)` and `Rng.new(s, "k", 12, 3)` were the *same stream*. Invisible while every key was `(name, depth)` — and Phase 6 introduces exactly the colliding shape. Caught before any golden hash was committed, which is the only reason the fix was free. `Phase00_Boot` now regresses it.
+- **Death on a cleared floor stranded the player.** They respawned at the lobby while the run continued 2000 studs away, unreachable. Death now ends the run, which is the designed roguelite loop anyway. **You will lose your run when you die — that is intended.**
+- **A fixed entrance offset put the player outside small rooms.** `entranceOffset.Z = 16` is fine in a 40-deep Combat room and lands outside a 28-deep Healing room, so it never sealed. Now derived from the template's own interior.
+
 #### Fixed during Phase 3
 
 - **Practice skeleton respawn fired on any enemy death.** `onKilled` is a service-wide event and the listener did not filter by id, so killing any skeleton respawned the practice one on top of the live one, compounding each time. Found by auditing against the newly installed `roblox-engineer` skill's connection-leak checklist. `onKilled` now leads with the enemy id, and Phase 2 regresses it.
@@ -127,14 +147,15 @@ Built: **Combat, Elite, Treasure, Healing.** All four are pure data entries — 
 | 2026-09-19 | 03 | 173 / 173 (four specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 04 | 211 / 211 (five specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 05 | 283 / 283 (six specs, ×2 runs) | 0 server, 0 client | pass |
+| 2026-09-19 | 06 | 578 / 578 (seven specs, ×2 runs) | 0 server, 0 client | pass |
 
-The suite now spends ~55 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
+The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
 
 ## Next
 
 1. **You:** walk the slice and call both gates — Phase 1 (does swinging feel good?) and Phase 3 (is spawn → fight → win → leave fun?). Everything after this is built on those answers.
 2. Decide whether Shop and Event should wait for Phase 7/12 as I assumed, or get placeholder versions sooner.
-3. Phase 6 — seeded procedural generation: the same seed must produce an identical run. This is the QA keystone; every later bug report carries a seed.
+3. Phase 7 — loot: gold, equipment and Soul Shards, with drop rolls on the run seed so loot is as reproducible as layout.
 
 ## Where to go in-game
 

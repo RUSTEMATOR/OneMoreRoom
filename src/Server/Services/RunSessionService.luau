@@ -10,6 +10,10 @@ export type RunState = {
 	floor: number,
 	gold: number,
 	active: boolean,
+	-- Which exit index was taken on each cleared floor. Reproducing a run needs the
+	-- seed AND the path: generation is deterministic, but which branch you walked is
+	-- an input, not an output.
+	path: { number },
 }
 
 local current: RunState? = nil
@@ -24,6 +28,7 @@ function RunSessionService.begin(seed: number): RunState
 		floor = 1,
 		gold = 0,
 		active = true,
+		path = {},
 	}
 	current = state
 	return state
@@ -42,6 +47,22 @@ function RunSessionService.addGold(amount: number): number
 	end
 	state.gold += amount
 	return amount
+end
+
+-- Formatted the way a bug report should carry it: "seed:839271 path:1,2,1".
+function RunSessionService.describe(): string
+	local state = current
+	if state == nil then
+		return "no active run"
+	end
+	return `seed:{state.seed} path:{table.concat(state.path, ",")}`
+end
+
+function RunSessionService.recordChoice(exitIndex: number)
+	local state = current
+	if state ~= nil then
+		table.insert(state.path, exitIndex)
+	end
 end
 
 function RunSessionService.finish()

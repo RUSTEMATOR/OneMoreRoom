@@ -25,13 +25,9 @@ RoomConfig.templates = {
 		material = Enum.Material.Slate,
 		doorMaterial = Enum.Material.WoodPlanks,
 
-		enemyKind = "Skeleton",
-		-- Offsets from the room centre, on the floor.
-		enemySpawns = {
-			Vector3.new(-9, 0, -9),
-			Vector3.new(9, 0, -9),
-			Vector3.new(0, 0, -13),
-		},
+		-- Placements are generated per seed by FloorPlan; the template only says what
+		-- kind, how many, and how far from the centre they may stand.
+		encounter = { kind = "Skeleton", minCount = 2, maxCount = 5, radius = 15 },
 
 		-- Doors drop into the floor to open and rise to seal.
 		doorTravel = 12,
@@ -40,9 +36,9 @@ RoomConfig.templates = {
 		clearDelay = 0.6,
 	},
 
-	-- Everything below is a data entry. No new plumbing: a room with an empty
-	-- enemySpawns list simply clears the moment it seals, and `reward` adds a prize
-	-- the player walks into. That is the Phase 5 acceptance criterion.
+	-- Everything below is a data entry. No new plumbing: a room whose encounter has
+	-- a zero count simply clears the moment it seals, and `reward` adds a prize the
+	-- player walks into. That is the Phase 5 acceptance criterion.
 
 	Elite = {
 		id = "Elite",
@@ -57,11 +53,10 @@ RoomConfig.templates = {
 		trimColor = Color3.fromRGB(176, 122, 220),
 		material = Enum.Material.Slate,
 		doorMaterial = Enum.Material.WoodPlanks,
-		enemyKind = "SkeletonElite",
-		enemySpawns = {
-			Vector3.new(0, 0, -13),
-		},
-		reward = { kind = "gold", amount = 40 },
+		encounter = { kind = "SkeletonElite", minCount = 1, maxCount = 2, radius = 15 },
+		-- Only the amount is seeded; the kind stays fixed so a Treasure room is
+		-- always treasure and a Healing room always heals.
+		reward = { kind = "gold", minAmount = 30, maxAmount = 55 },
 		doorTravel = 12,
 		doorTime = 0.55,
 		sealDelay = 0.25,
@@ -81,9 +76,8 @@ RoomConfig.templates = {
 		trimColor = Color3.fromRGB(226, 184, 74),
 		material = Enum.Material.Sandstone,
 		doorMaterial = Enum.Material.WoodPlanks,
-		enemyKind = "Skeleton",
-		enemySpawns = {},
-		reward = { kind = "gold", amount = 60 },
+		encounter = { kind = "Skeleton", minCount = 0, maxCount = 0, radius = 10 },
+		reward = { kind = "gold", minAmount = 45, maxAmount = 80 },
 		doorTravel = 12,
 		doorTime = 0.55,
 		sealDelay = 0.25,
@@ -103,11 +97,10 @@ RoomConfig.templates = {
 		trimColor = Color3.fromRGB(96, 214, 168),
 		material = Enum.Material.Slate,
 		doorMaterial = Enum.Material.WoodPlanks,
-		enemyKind = "Skeleton",
-		enemySpawns = {},
+		encounter = { kind = "Skeleton", minCount = 0, maxCount = 0, radius = 10 },
 		-- A fraction, not a flat number, so it stays meaningful when Phase 9's
 		-- permanent upgrades raise max health.
-		reward = { kind = "heal", amount = 0.5 },
+		reward = { kind = "heal", minAmount = 0.35, maxAmount = 0.6 },
 		doorTravel = 12,
 		doorTime = 0.55,
 		sealDelay = 0.25,
@@ -132,6 +125,10 @@ RoomConfig.prize = {
 RoomConfig.practice = {
 	enabled = true,
 	template = "Combat",
+	-- Fixed, so the practice room is the same every session and a manual pass is
+	-- comparing like with like.
+	seed = 101010,
+	depth = 1,
 	-- Far enough from the spawn pad that you walk to it deliberately.
 	position = Vector3.new(0, 0, -78),
 }

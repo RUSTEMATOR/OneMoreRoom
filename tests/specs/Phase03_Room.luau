@@ -14,6 +14,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local Spec = require(script.Parent.Spec)
 
+local FloorPlan = require(ReplicatedStorage.Shared.FloorPlan)
 local RoomConfig = require(ReplicatedStorage.Shared.RoomConfig)
 local CombatService = require(ServerScriptService.Services.CombatService)
 local EnemyService = require(ServerScriptService.Services.EnemyService)
@@ -22,6 +23,12 @@ local PlayerService = require(ServerScriptService.Services.PlayerService)
 local RoomService = require(ServerScriptService.Services.RoomService)
 
 local TEMPLATE = "Combat"
+local SEED = 30303
+
+-- Rooms are plan-driven now: without one there is no encounter to clear.
+local function planFor(template: string, depth: number)
+	return FloorPlan.generate(SEED, depth, template)
+end
 local COMBAT = RoomConfig.templates.Combat
 
 local function killEveryEnemyIn(room: RoomService.Room)
@@ -43,7 +50,11 @@ return function()
 
 	spec:truthy("combat template present", COMBAT ~= nil)
 	spec:check("interior has volume", COMBAT.interior.X > 0 and COMBAT.interior.Z > 0)
-	spec:check("the encounter has enemies", #COMBAT.enemySpawns > 0, #COMBAT.enemySpawns)
+	spec:check(
+		"the encounter can have enemies",
+		COMBAT.encounter.maxCount > 0,
+		COMBAT.encounter.maxCount
+	)
 	-- An open door has to actually clear the doorway, or the player is sealed in a
 	-- room the state machine believes is open.
 	spec:check(
@@ -52,12 +63,12 @@ return function()
 		`travel {COMBAT.doorTravel} vs height {COMBAT.doorway.height}`
 	)
 	spec:check(
-		"every enemy spawn sits inside the interior",
+		"every generated enemy spawn sits inside the interior",
 		(function()
-			for _, offset in COMBAT.enemySpawns do
+			for _, placement in planFor(TEMPLATE, 1).enemies do
 				if
-					math.abs(offset.X) >= COMBAT.interior.X / 2
-					or math.abs(offset.Z) >= COMBAT.interior.Z / 2
+					math.abs(placement.offset.X) >= COMBAT.interior.X / 2
+					or math.abs(placement.offset.Z) >= COMBAT.interior.Z / 2
 				then
 					return false
 				end
@@ -76,7 +87,7 @@ return function()
 	if practice ~= nil then
 		spec:truthy("practice room has a floor", practice.floor)
 		spec:truthy("practice room has an entrance door", practice.entranceDoor)
-		spec:truthy("practice room has an exit door", practice.exitDoor)
+		spec:truthy("practice room has exit doors", #practice.exitDoors > 0)
 		spec:truthy(
 			"practice room parented under Static",
 			practice.model:IsDescendantOf(static :: Instance)
@@ -109,7 +120,7 @@ return function()
 
 		-- Build the room around the player: floor origin at their feet.
 		local origin = CFrame.new(root.Position - Vector3.new(0, 3, 0))
-		room = RoomService.create(TEMPLATE, origin, generated)
+		room = RoomService.create(TEMPLATE, origin, generated, planFor(TEMPLATE, 1))
 		spec:truthy("room created", room)
 		local live = room
 		if live == nil then
@@ -118,9 +129,12 @@ return function()
 
 		spec:truthy("room has walls", live.model:FindFirstChild("WallLeft"))
 		spec:truthy("room has an entrance lintel", live.model:FindFirstChild("EntranceLintel"))
-		spec:truthy("room has an exit lintel", live.model:FindFirstChild("ExitLintel"))
+		spec:truthy(
+			"room has an exit lintel",
+			live.model:FindFirstChild("ExitLintel") or live.model:FindFirstChild("ExitLintel1")
+		)
 		spec:check("entrance door starts open", RoomService.isDoorOpen(live, live.entranceDoor))
-		spec:check("exit door starts closed", not RoomService.isDoorOpen(live, live.exitDoor))
+		spec:check("exit door starts closed", not RoomService.isDoorOpen(live, live.exitDoors[1]))
 
 		-- ------------------------------------------ D. entering seals the room
 
@@ -141,16 +155,16 @@ return function()
 		spec:equals(
 			"the encounter spawned the configured enemies",
 			#live.enemyIds,
-			RoomService.expectedEnemyCount(TEMPLATE)
+			RoomService.expectedEnemyCount(live)
 		)
 		spec:equals(
 			"every spawned enemy is alive",
 			RoomService.liveEnemyCount(live),
-			RoomService.expectedEnemyCount(TEMPLATE)
+			RoomService.expectedEnemyCount(live)
 		)
 		spec:check(
 			"exit stays shut while enemies live",
-			not RoomService.isDoorOpen(live, live.exitDoor)
+			not RoomService.isDoorOpen(live, live.exitDoors[1])
 		)
 
 		for _, id in live.enemyIds do
@@ -172,7 +186,7 @@ return function()
 
 		task.wait(COMBAT.clearDelay + COMBAT.doorTime + 0.4)
 		spec:equals("room reports Cleared", live.phase, "Cleared")
-		spec:check("exit door opens on clear", RoomService.isDoorOpen(live, live.exitDoor))
+		spec:check("exit door opens on clear", RoomService.isDoorOpen(live, live.exitDoors[1]))
 
 		-- ------------------------------ G. leaving mid-fight resets the room
 
@@ -182,7 +196,7 @@ return function()
 		room = nil
 
 		local away = CFrame.new(root.Position + Vector3.new(0, 0, -260))
-		local remote = RoomService.create(TEMPLATE, away, generated)
+		local remote = RoomService.create(TEMPLATE, away, generated, planFor(TEMPLATE, 1))
 		room = remote
 		if remote == nil then
 			spec:check("second room created", false)

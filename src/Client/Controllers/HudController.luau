@@ -10,7 +10,10 @@
 -- authority.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+
+local Net = require(ReplicatedStorage.Shared.Net)
 
 local HudController = {}
 
@@ -23,6 +26,9 @@ local player = Players.LocalPlayer
 local healthFill: Frame
 local staminaFill: Frame
 local healthLabel: TextLabel
+local floorLabel: TextLabel
+local seedLabel: TextLabel
+local runStateChanged: RemoteEvent
 
 local shownHealth = 1
 local shownStamina = 1
@@ -91,6 +97,63 @@ local function build()
 
 	healthFill, healthLabel = makeBar(root, 0, Color3.fromRGB(196, 62, 52))
 	staminaFill = makeBar(root, BAR_HEIGHT + 6, Color3.fromRGB(214, 160, 54))
+
+	-- Floor and seed, top centre. These arrive over RunStateChanged rather than as
+	-- attributes: they change once per floor, not per frame, and the remote was
+	-- already declared in Net for exactly this.
+	local runBox = Instance.new("Frame")
+	runBox.Name = "RunState"
+	runBox.AnchorPoint = Vector2.new(0.5, 0)
+	runBox.Position = UDim2.new(0.5, 0, 0, 18)
+	runBox.Size = UDim2.fromOffset(280, 44)
+	runBox.BackgroundTransparency = 1
+	runBox.Parent = gui
+
+	floorLabel = Instance.new("TextLabel")
+	floorLabel.Size = UDim2.new(1, 0, 0, 26)
+	floorLabel.BackgroundTransparency = 1
+	floorLabel.Font = Enum.Font.GothamBold
+	floorLabel.TextSize = 22
+	floorLabel.TextColor3 = Color3.fromRGB(240, 238, 232)
+	floorLabel.TextStrokeTransparency = 0.5
+	floorLabel.Text = ""
+	floorLabel.Parent = runBox
+
+	-- The seed is shown so a bug report can carry it without digging in the log.
+	seedLabel = Instance.new("TextLabel")
+	seedLabel.Position = UDim2.fromOffset(0, 26)
+	seedLabel.Size = UDim2.new(1, 0, 0, 16)
+	seedLabel.BackgroundTransparency = 1
+	seedLabel.Font = Enum.Font.Code
+	seedLabel.TextSize = 13
+	seedLabel.TextColor3 = Color3.fromRGB(168, 172, 180)
+	seedLabel.TextStrokeTransparency = 0.7
+	seedLabel.Text = ""
+	seedLabel.Parent = runBox
+end
+
+type RunSnapshot = {
+	active: boolean,
+	floor: number,
+	seed: number,
+	gold: number,
+	template: string?,
+}
+
+local function onRunState(snapshot: RunSnapshot)
+	if typeof(snapshot) ~= "table" then
+		return
+	end
+	if not snapshot.active then
+		floorLabel.Text = ""
+		seedLabel.Text = ""
+		return
+	end
+	local name = snapshot.template or ""
+	floorLabel.Text = if name ~= ""
+		then `FLOOR {snapshot.floor}  ·  {name}`
+		else `FLOOR {snapshot.floor}`
+	seedLabel.Text = `seed {snapshot.seed}  ·  {snapshot.gold} gold`
 end
 
 local function updateLabel()
@@ -109,7 +172,9 @@ local function step(dt: number)
 	staminaFill.Size = UDim2.fromScale(shownStamina, 1)
 end
 
-function HudController.Init() end
+function HudController.Init()
+	runStateChanged = Net.event("RunStateChanged")
+end
 
 function HudController.Start()
 	build()
@@ -120,6 +185,7 @@ function HudController.Start()
 	player:GetAttributeChangedSignal("OMF_Health"):Connect(updateLabel)
 	player:GetAttributeChangedSignal("OMF_MaxHealth"):Connect(updateLabel)
 	RunService.RenderStepped:Connect(step)
+	runStateChanged.OnClientEvent:Connect(onRunState)
 end
 
 return HudController

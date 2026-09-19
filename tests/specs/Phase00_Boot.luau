@@ -61,5 +61,22 @@ return function()
 		table.concat(seqC, ",")
 	)
 
+	-- Sub-stream keys must be delimited, not concatenated. Without a separator these
+	-- two both flatten to "k123" and return the same sequence — harmless while every
+	-- key is (name, depth), and silently catastrophic once a key carries two numbers,
+	-- which is what seeded generation does.
+	local amb1 = Rng.new(555, "k", 1, 23)
+	local amb2 = Rng.new(555, "k", 12, 3)
+	local ambSeq1, ambSeq2 = {}, {}
+	for i = 1, 6 do
+		ambSeq1[i] = amb1:int(1, 1000)
+		ambSeq2[i] = amb2:int(1, 1000)
+	end
+	spec:check(
+		"ambiguous key tuples yield different streams",
+		table.concat(ambSeq1, ",") ~= table.concat(ambSeq2, ","),
+		`{table.concat(ambSeq1, ",")} vs {table.concat(ambSeq2, ",")}`
+	)
+
 	return spec:finish()
 end

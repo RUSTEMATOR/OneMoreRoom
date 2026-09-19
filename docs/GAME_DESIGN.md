@@ -31,7 +31,9 @@ A floor is Entrance → Encounter → Reward → Exit. From Phase 6 the floors f
          EXIT
 ```
 
-Rooms per floor stay limited on purpose — it keeps procedural generation debuggable.
+Each floor is one room, and clearing it opens **two doors offering two different seeded room types**. Which one you walk through is the choice the pitch promises, and it is recorded in the run's path.
+
+Where a door leads is keyed on the room you are standing in, not just the depth — so arriving at floor 4 from a Treasure room can offer something different than arriving from an Elite. Keying it on the full history instead would make the run un-testable, since the number of possible paths doubles every floor.
 
 ## Room types
 
@@ -39,7 +41,11 @@ Combat (fight), Elite (harder enemy, better reward), Treasure (no combat, choose
 
 ## Seeds
 
-Every run is seeded and the seed is visible in-game and logged. Same seed ⇒ identical run. This is the backbone of the QA process: every bug report carries a seed, and `/repro <seed> <floor>` replays it exactly.
+Every run is seeded. The seed is shown in the HUD and logged, so a bug report can carry it without digging.
+
+The guarantee is precise: **same seed *and same path* ⇒ identical geometry, encounters and rewards.** Which door you take is an input, not an output, so reproducing a run needs both halves — a report reads `seed:839271 path:1,2,1`. Combat outcomes still differ, because you fight differently.
+
+Generation lives in `Shared/FloorPlan.luau` as a pure function of `(seed, depth, template)`, separate from the code that turns a plan into Instances. That split is what makes the reproducibility regression test pure arithmetic rather than a playthrough.
 
 ## Version 1.0 target
 

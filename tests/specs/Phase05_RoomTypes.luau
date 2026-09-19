@@ -18,6 +18,7 @@ local Spec = require(script.Parent.Spec)
 local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local EnemyConfig = require(ReplicatedStorage.Shared.EnemyConfig)
 local FloorConfig = require(ReplicatedStorage.Shared.FloorConfig)
+local FloorPlan = require(ReplicatedStorage.Shared.FloorPlan)
 local RoomConfig = require(ReplicatedStorage.Shared.RoomConfig)
 local EnemyService = require(ServerScriptService.Services.EnemyService)
 local FloorService = require(ServerScriptService.Services.FloorService)
@@ -26,6 +27,7 @@ local RoomService = require(ServerScriptService.Services.RoomService)
 local RunSessionService = require(ServerScriptService.Services.RunSessionService)
 
 local EXPECTED_TEMPLATES = { "Combat", "Elite", "Treasure", "Healing" }
+local SEED = 50505
 
 -- Put the room's centre on the player, so the prize is within pickup range without
 -- moving a client-owned character.
@@ -48,7 +50,7 @@ return function()
 		-- generic. A missing key here means a new type needed special handling.
 		spec:check(`{id} has an interior`, template.interior ~= nil and template.interior.X > 0)
 		spec:check(`{id} has a doorway`, template.doorway ~= nil and template.doorway.width > 0)
-		spec:truthy(`{id} declares enemySpawns`, template.enemySpawns ~= nil)
+		spec:truthy(`{id} declares an encounter`, template.encounter ~= nil)
 		spec:check(
 			`{id} door travel clears its doorway`,
 			template.doorTravel >= template.doorway.height
@@ -83,35 +85,42 @@ return function()
 	end
 	spec:equals(
 		"the Elite room uses the elite enemy",
-		RoomConfig.templates.Elite.enemyKind,
+		RoomConfig.templates.Elite.encounter.kind,
 		"SkeletonElite"
 	)
 
 	-- ------------------------------------------------- C. reward templates
 
-	spec:equals("Treasure has no encounter", #RoomConfig.templates.Treasure.enemySpawns, 0)
-	spec:equals("Healing has no encounter", #RoomConfig.templates.Healing.enemySpawns, 0)
+	spec:equals("Treasure has no enemies", RoomConfig.templates.Treasure.encounter.maxCount, 0)
+	spec:equals("Healing has no enemies", RoomConfig.templates.Healing.encounter.maxCount, 0)
 	spec:equals("Treasure pays gold", RoomConfig.templates.Treasure.reward.kind, "gold")
 	spec:equals("Healing restores health", RoomConfig.templates.Healing.reward.kind, "heal")
+	local healReward = RoomConfig.templates.Healing.reward
 	spec:check(
 		"the heal is a fraction, so it survives a max-health upgrade",
-		RoomConfig.templates.Healing.reward.amount > 0
-			and RoomConfig.templates.Healing.reward.amount <= 1,
-		RoomConfig.templates.Healing.reward.amount
+		healReward.minAmount > 0 and healReward.maxAmount <= 1,
+		`{healReward.minAmount}..{healReward.maxAmount}`
+	)
+	spec:check(
+		"every reward declares a range for the seed to roll in",
+		RoomConfig.templates.Treasure.reward.maxAmount
+			> RoomConfig.templates.Treasure.reward.minAmount
 	)
 	spec:truthy("Combat has no prize", RoomConfig.templates.Combat.reward == nil)
 
 	-- ------------------------------------------------------ D. the sequence
 
 	local seen: { [string]: boolean } = {}
-	for depth = 1, #FloorConfig.sequence do
-		local template = FloorConfig.templateForFloor(depth)
+	for _, template in FloorConfig.pool do
 		seen[template] = true
-		spec:truthy(`floor {depth} maps to a real template`, RoomConfig.templates[template] ~= nil)
+		spec:truthy(
+			`pooled id {template} is a real template`,
+			RoomConfig.templates[template] ~= nil
+		)
 	end
-	spec:truthy("the rotation includes a Treasure room", seen.Treasure)
-	spec:truthy("the rotation includes an Elite room", seen.Elite)
-	spec:truthy("the rotation includes a Healing room", seen.Healing)
+	spec:truthy("the pool includes a Treasure room", seen.Treasure)
+	spec:truthy("the pool includes an Elite room", seen.Elite)
+	spec:truthy("the pool includes a Healing room", seen.Healing)
 
 	-- ------------------------------------------------ player-driven checks
 
@@ -130,12 +139,17 @@ return function()
 		-- ---------------------------------- E. every type builds and clears
 
 		for _, id in EXPECTED_TEMPLATES do
-			local room = RoomService.create(id, CFrame.new(3000, 5, 3000 + #made * 200), generated)
+			local room = RoomService.create(
+				id,
+				CFrame.new(3000, 5, 3000 + #made * 200),
+				generated,
+				FloorPlan.generate(SEED, 1, id)
+			)
 			spec:truthy(`{id} builds`, room)
 			if room ~= nil then
 				table.insert(made, room)
 				spec:truthy(`{id} has a floor`, room.floor)
-				spec:truthy(`{id} has both doors`, room.entranceDoor and room.exitDoor)
+				spec:truthy(`{id} has both doors`, room.entranceDoor and #room.exitDoors > 0)
 				local wantsPrize = RoomConfig.templates[id].reward ~= nil
 				spec:equals(
 					`{id} prize presence matches its template`,
@@ -158,7 +172,12 @@ return function()
 		RunSessionService.begin(777)
 		local goldBefore = (RunSessionService.get() :: any).gold
 
-		local treasure = RoomService.create("Treasure", CFrame.new(3000, 5, 3000), generated)
+		local treasure = RoomService.create(
+			"Treasure",
+			CFrame.new(3000, 5, 3000),
+			generated,
+			FloorPlan.generate(SEED, 1, "Treasure")
+		)
 		if treasure ~= nil then
 			table.insert(made, treasure)
 			moveRoomOnto(treasure, root.Position)
@@ -169,13 +188,13 @@ return function()
 			-- A reward room has nothing to fight, so it must clear itself rather
 			-- than sealing the player in forever.
 			spec:equals("a room with no encounter clears itself", treasure.phase, "Cleared")
-			spec:check("its exit opened", RoomService.isDoorOpen(treasure, treasure.exitDoor))
+			spec:check("its exit opened", RoomService.isDoorOpen(treasure, treasure.exitDoors[1]))
 
 			spec:truthy("the treasure prize was taken on contact", treasure.prizeTaken)
 			spec:check(
-				"the prize paid its gold into the run",
+				"the prize paid its seeded gold into the run",
 				(RunSessionService.get() :: any).gold
-					>= goldBefore + RoomConfig.templates.Treasure.reward.amount,
+					>= goldBefore + RoomConfig.templates.Treasure.reward.minAmount,
 				`{goldBefore} -> {(RunSessionService.get() :: any).gold}`
 			)
 			spec:truthy("the prize was consumed", treasure.prize == nil)
@@ -187,7 +206,12 @@ return function()
 		-- ---------------------------------------------- G. the healing prize
 
 		PlayerService.setHealth(player, 20)
-		local healRoom = RoomService.create("Healing", CFrame.new(3400, 5, 3400), generated)
+		local healRoom = RoomService.create(
+			"Healing",
+			CFrame.new(3400, 5, 3400),
+			generated,
+			FloorPlan.generate(SEED, 1, "Healing")
+		)
 		if healRoom ~= nil then
 			table.insert(made, healRoom)
 			moveRoomOnto(healRoom, root.Position)

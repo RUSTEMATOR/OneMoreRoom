@@ -7,6 +7,13 @@ local MODULUS = 2147483647
 local Rng = {}
 Rng.__index = Rng
 
+-- The separator is load-bearing, not decoration. Folding the parts' bytes end to end
+-- would make Rng.new(s, "k", 1, 23) and Rng.new(s, "k", 12, 3) the same stream, because
+-- both flatten to "k123". That is invisible while every key is (name, depth), and
+-- silently catastrophic the moment a key gains a second number — which is exactly the
+-- shape seeded generation uses.
+local SEPARATOR = 0x1F
+
 local function deriveSeed(seed: number, parts: { any }): number
 	local h = seed % MODULUS
 	for _, part in parts do
@@ -14,6 +21,7 @@ local function deriveSeed(seed: number, parts: { any }): number
 		for i = 1, #text do
 			h = (h * 31 + text:byte(i)) % MODULUS
 		end
+		h = (h * 31 + SEPARATOR) % MODULUS
 	end
 	return h
 end

@@ -37,14 +37,15 @@ local function killEncounter(room: RoomService.Room)
 	end
 end
 
--- Put the room's exit-trigger volume over the player, rather than walking the player
--- into it. The trigger sits well behind the interior, so this does not also read as
--- "inside the room".
-local function moveExitTriggerOnto(room: RoomService.Room, position: Vector3)
+-- Put a SPECIFIC exit's trigger volume over the player, rather than walking the
+-- player into it. With two doors the trigger centres sit at their local X, so a
+-- room-centred pivot would land on the middle pier and match neither.
+local function moveExitTriggerOnto(room: RoomService.Room, exitIndex: number, position: Vector3)
 	local roomSpec = RoomConfig.templates[room.template]
 	local edge = roomSpec.interior.Z / 2 + roomSpec.wallThickness
 	local back = edge + FloorConfig.layout.exitTriggerDepth / 2
-	room.model:PivotTo(CFrame.new(position + Vector3.new(0, -roomSpec.interior.Y / 2, back)))
+	local offsetX = RoomService.exitOffsetX(room, exitIndex)
+	room.model:PivotTo(CFrame.new(position + Vector3.new(-offsetX, -roomSpec.interior.Y / 2, back)))
 end
 
 return function()
@@ -53,17 +54,19 @@ return function()
 	-- ---------------------------------------------------------- A. config
 
 	spec:truthy("floor config present", FloorConfig.run ~= nil)
-	spec:check("the sequence has at least one template", #FloorConfig.sequence > 0)
+	spec:check("two exits per room", FloorConfig.exitCount == 2, FloorConfig.exitCount)
 	spec:check("clearing a floor is worth something", FloorConfig.run.clearBonusGold > 0)
-	spec:equals(
-		"floor 1 uses the first template",
-		FloorConfig.templateForFloor(1),
-		FloorConfig.sequence[1]
-	)
-	spec:equals(
-		"the sequence wraps rather than running out",
-		FloorConfig.templateForFloor(#FloorConfig.sequence + 1),
-		FloorConfig.sequence[1]
+	spec:check("the generation pool is non-empty", #FloorConfig.pool > 0, #FloorConfig.pool)
+	spec:check(
+		"every pooled id is a real template",
+		(function()
+			for _, id in FloorConfig.pool do
+				if RoomConfig.templates[id] == nil then
+					return false
+				end
+			end
+			return true
+		end)()
 	)
 
 	-- Floors must not overlap, or a stray enemy from the last one can reach the next.
@@ -136,8 +139,27 @@ return function()
 
 		-- The player is standing in it, so the room seals and spawns on its own.
 		task.wait(combat.sealDelay + combat.doorTime + 0.5)
-		spec:equals("the floor's room sealed around the player", roomOne.phase, "Clearing")
-		spec:check("the encounter spawned", #roomOne.enemyIds > 0, #roomOne.enemyIds)
+
+		-- Which template floor 1 opens on is seeded now, so this cannot assume an
+		-- encounter: a Treasure or Healing start legitimately has nothing to fight
+		-- and clears itself the moment it seals.
+		local plan = FloorService.currentPlan()
+		spec:truthy("the floor carries a plan", plan)
+		spec:check(
+			"the floor's room sealed around the player",
+			roomOne.phase ~= "Open",
+			roomOne.phase
+		)
+		spec:equals(
+			"the room offers two exits",
+			RoomService.exitCount(roomOne),
+			FloorConfig.exitCount
+		)
+		spec:equals(
+			"the world spawned exactly the planned encounter",
+			#roomOne.enemyIds,
+			if plan ~= nil then #plan.enemies else 0
+		)
 
 		killEncounter(roomOne)
 		task.wait(combat.clearDelay + combat.doorTime + 0.6)
@@ -147,7 +169,7 @@ return function()
 
 		local goldBefore = (RunSessionService.get() :: any).gold
 		local rootNow = (PlayerService.get(player) :: any).rootPart :: BasePart
-		moveExitTriggerOnto(roomOne, rootNow.Position)
+		moveExitTriggerOnto(roomOne, 1, rootNow.Position)
 
 		task.wait(1.2)
 		spec:equals("walking out advances to floor 2", FloorService.currentFloor(), 2)

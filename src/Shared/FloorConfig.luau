@@ -1,8 +1,15 @@
 --!strict
--- Floor structure. Phase 6 replaces `sequence` with a seeded graph; until then a run
--- is a fixed list of room templates, which is enough to prove the loop advances.
+-- Floor structure and the generation parameters FloorPlan draws from.
+--
+-- This module must NOT require FloorPlan: FloorPlan requires this, and ServerMain
+-- resolves every module at top level, so the cycle would be a hard boot error.
 
 local FloorConfig = {}
+
+-- Bumped deliberately whenever generation is *meant* to change. The golden-hash spec
+-- pairs its committed constant with this, so an intentional change is one line plus a
+-- regenerated hash, and an unintentional one is a loud failure.
+FloorConfig.generationVersion = 1
 
 FloorConfig.run = {
 	firstFloor = 1,
@@ -15,29 +22,56 @@ FloorConfig.layout = {
 	-- Each floor is built well clear of the last so a lingering enemy or a stray
 	-- physics object cannot reach across. Cheaper than chasing cleanup bugs.
 	floorSpacing = 400,
-	-- Where the run starts in world space, far from the practice area.
 	origin = Vector3.new(2000, 0, 0),
-	-- Player lands just inside the entrance, facing the exit.
+	-- Player lands just inside the entrance, facing the exits. Deliberately centred
+	-- between the two doors rather than in front of one, so neither is favoured.
 	entranceOffset = Vector3.new(0, 5, 16),
-	-- The volume just beyond the exit doorway that counts as "left the floor".
+	entranceClearRadius = 10,
 	exitTriggerDepth = 14,
 	exitTriggerWidth = 12,
 }
 
--- A fixed rotation until Phase 6 makes the choice seeded. The shape matters more than
--- the order: fight, breathe, fight harder, recover. Treasure lands early so the player
--- sees a reward before the Elite, and Healing lands straight after it.
-FloorConfig.sequence = {
+-- The ordered pool generation draws from. ORDER MATTERS AND IS PART OF THE SEED
+-- CONTRACT: `Rng:int(1, #pool)` indexes this list, so reordering or inserting changes
+-- every seed's output. Never iterate RoomConfig.templates with pairs to build this —
+-- Luau hash order is not stable and the golden hash would flap between runs.
+FloorConfig.pool = {
 	"Combat",
 	"Treasure",
-	"Combat",
 	"Elite",
 	"Healing",
 }
 
-function FloorConfig.templateForFloor(depth: number): string
-	local index = ((depth - 1) % #FloorConfig.sequence) + 1
-	return FloorConfig.sequence[index]
+-- Two doors per cleared room.
+FloorConfig.exitCount = 2
+
+-- Encounter size grows with depth. Without a curve, floor 30 fights floor 1's
+-- encounter and the climb has no shape.
+FloorConfig.encounter = {
+	-- count = clamp(base + floor(depth * perFloor), min, max), then the template's
+	-- own min/max clamp on top.
+	base = 1.0,
+	perFloor = 0.34,
+	hardMax = 6,
+	-- Enemies are never placed closer than this multiple of their own root width.
+	separationFactor = 2.0,
+	-- Bounded rejection sampling: give up after this many tries and fall back to a
+	-- deterministic ring slot, so generation always terminates.
+	maxAttempts = 12,
+}
+
+-- Where a player lands inside a room. The base Z is clamped into the template's own
+-- interior: a fixed 16 is fine in a 40-deep Combat room but lands OUTSIDE a 28-deep
+-- Healing room, which means the room never registers anyone inside and never seals.
+function FloorConfig.entranceOffsetFor(interiorZ: number): Vector3
+	local base = FloorConfig.layout.entranceOffset
+	return Vector3.new(base.X, base.Y, math.min(base.Z, interiorZ / 2 - 4))
+end
+
+function FloorConfig.countForDepth(depth: number, minCount: number, maxCount: number): number
+	local raw = FloorConfig.encounter.base + math.floor(depth * FloorConfig.encounter.perFloor)
+	local capped = math.min(raw, FloorConfig.encounter.hardMax)
+	return math.clamp(math.floor(capped), minCount, maxCount)
 end
 
 return FloorConfig

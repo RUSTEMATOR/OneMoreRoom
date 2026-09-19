@@ -3,7 +3,7 @@
 --
 -- The room is laid out around its own origin (the centre of the floor), so the caller
 -- positions it with a single PivotTo and nothing here needs to know where it sits.
--- Entrance is +Z, exit is -Z.
+-- Entrance is +Z (always one door); exits are -Z and there may be more than one.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -15,7 +15,9 @@ export type RoomParts = {
 	model: Model,
 	floor: BasePart,
 	entranceDoor: BasePart,
-	exitDoor: BasePart,
+	exitDoors: { BasePart },
+	-- Local X centre of each exit door, which is what the exit trigger volumes need.
+	exitOffsetsX: { number },
 	prize: BasePart?,
 	interiorCentre: Vector3,
 }
@@ -39,43 +41,74 @@ local function makePart(
 	return part
 end
 
--- One of the two Z-facing walls, with a centred gap: two piers plus a lintel. Cheaper
--- to reason about than CSG, and it stays diffable.
-local function buildWallWithDoorway(parent: Model, prefix: string, spec: any, zOffset: number)
+-- One of the two Z-facing walls, with `doorCount` evenly spaced gaps: n+1 piers and n
+-- lintels. Cheaper to reason about than CSG, and it stays diffable.
+--
+-- Returns the local X centre of each gap, which is what the caller needs to place the
+-- doors, their trim, and the exit trigger volumes.
+--
+-- For doorCount == 1 this reproduces the original single-doorway geometry exactly
+-- (span 44, width 10 -> one pier of 17 either side, gap centred at 0), so entrances
+-- and single-exit rooms are untouched by the generalisation.
+local function buildWallWithDoorways(
+	parent: Model,
+	prefix: string,
+	spec: any,
+	zOffset: number,
+	doorCount: number
+): { number }
 	local interior = spec.interior
 	local thickness = spec.wallThickness
 	local width = spec.doorway.width
 	local height = spec.doorway.height
-	local pierWidth = (interior.X + thickness * 2 - width) / 2
-	local pierOffset = width / 2 + pierWidth / 2
+
+	local span = interior.X + thickness * 2
+	local pierWidth = (span - width * doorCount) / (doorCount + 1)
 
 	local function place(name: string, size: Vector3, centre: Vector3)
 		local part = makePart(name, size, centre, spec.wallColor, spec.material)
 		part.Parent = parent
 	end
 
+	-- Walk left to right: pier, gap, pier, gap, ... pier.
+	local centres: { number } = {}
+	local cursor = -span / 2
+	for index = 1, doorCount do
+		place(
+			-- Keep the original names when there is one gap, so existing assertions
+			-- and any muscle memory still hold.
+			if doorCount == 1 then `{prefix}PierA` else `{prefix}Pier{index}`,
+			Vector3.new(pierWidth, interior.Y, thickness),
+			Vector3.new(cursor + pierWidth / 2, interior.Y / 2, zOffset)
+		)
+		cursor += pierWidth
+		table.insert(centres, cursor + width / 2)
+		cursor += width
+	end
 	place(
-		`{prefix}PierA`,
+		if doorCount == 1 then `{prefix}PierB` else `{prefix}Pier{doorCount + 1}`,
 		Vector3.new(pierWidth, interior.Y, thickness),
-		Vector3.new(-pierOffset, interior.Y / 2, zOffset)
+		Vector3.new(cursor + pierWidth / 2, interior.Y / 2, zOffset)
 	)
-	place(
-		`{prefix}PierB`,
-		Vector3.new(pierWidth, interior.Y, thickness),
-		Vector3.new(pierOffset, interior.Y / 2, zOffset)
-	)
-	place(
-		`{prefix}Lintel`,
-		Vector3.new(width, interior.Y - height, thickness),
-		Vector3.new(0, height + (interior.Y - height) / 2, zOffset)
-	)
+
+	for index, centre in centres do
+		place(
+			if doorCount == 1 then `{prefix}Lintel` else `{prefix}Lintel{index}`,
+			Vector3.new(width, interior.Y - height, thickness),
+			Vector3.new(centre, height + (interior.Y - height) / 2, zOffset)
+		)
+	end
+
+	return centres
 end
 
-function RoomBuilder.build(templateId: string): RoomParts?
+function RoomBuilder.build(templateId: string, exitCount: number?): RoomParts?
 	local spec = RoomConfig.templates[templateId]
 	if spec == nil then
 		return nil
 	end
+
+	local exits = math.max(1, exitCount or 1)
 
 	local interior = spec.interior
 	local thickness = spec.wallThickness
@@ -112,44 +145,52 @@ function RoomBuilder.build(templateId: string): RoomParts?
 	)
 	right.Parent = model
 
-	buildWallWithDoorway(model, "Entrance", spec, interior.Z / 2 + thickness / 2)
-	buildWallWithDoorway(model, "Exit", spec, -(interior.Z / 2 + thickness / 2))
+	local entranceZ = interior.Z / 2 + thickness / 2
+	local exitZ = -(interior.Z / 2 + thickness / 2)
+
+	buildWallWithDoorways(model, "Entrance", spec, entranceZ, 1)
+	local exitCentres = buildWallWithDoorways(model, "Exit", spec, exitZ, exits)
 
 	local doorSize = Vector3.new(spec.doorway.width, spec.doorway.height, thickness)
 
 	-- Doors slide vertically: sunk into the floor is open, raised is closed. The room
-	-- starts enterable but not exitable, so the entrance begins sunk and the exit
-	-- begins raised.
+	-- starts enterable but not exitable, so the entrance begins sunk and the exits
+	-- begin raised.
 	local openY = spec.doorway.height / 2 - spec.doorTravel
 	local closedY = spec.doorway.height / 2
 
 	local entranceDoor = makePart(
 		"EntranceDoor",
 		doorSize,
-		Vector3.new(0, openY, interior.Z / 2 + thickness / 2),
+		Vector3.new(0, openY, entranceZ),
 		spec.doorColor,
 		spec.doorMaterial
 	)
 	entranceDoor.Parent = model
 
-	local exitDoor = makePart(
-		"ExitDoor",
-		doorSize,
-		Vector3.new(0, closedY, -(interior.Z / 2 + thickness / 2)),
-		spec.doorColor,
-		spec.doorMaterial
-	)
-	exitDoor.Parent = model
+	local exitDoors: { BasePart } = {}
+	for index, centreX in exitCentres do
+		local door = makePart(
+			if exits == 1 then "ExitDoor" else `ExitDoor{index}`,
+			doorSize,
+			Vector3.new(centreX, closedY, exitZ),
+			spec.doorColor,
+			spec.doorMaterial
+		)
+		door.Parent = model
+		table.insert(exitDoors, door)
 
-	-- A lit strip over the exit, so which way is forward reads at a glance.
-	local trim = makePart(
-		"ExitTrim",
-		Vector3.new(spec.doorway.width, 0.6, 0.6),
-		Vector3.new(0, spec.doorway.height + 0.6, -(interior.Z / 2 + thickness / 2)),
-		spec.trimColor,
-		Enum.Material.Neon
-	)
-	trim.Parent = model
+		-- One lit strip per door, so a branching room reads as two real choices
+		-- rather than one exit and a hole.
+		local trim = makePart(
+			if exits == 1 then "ExitTrim" else `ExitTrim{index}`,
+			Vector3.new(spec.doorway.width, 0.6, 0.6),
+			Vector3.new(centreX, spec.doorway.height + 0.6, exitZ),
+			spec.trimColor,
+			Enum.Material.Neon
+		)
+		trim.Parent = model
+	end
 
 	-- A prize, when the template has one. Reward rooms have no encounter, so they
 	-- clear the moment they seal and this is the only thing in them.
@@ -176,7 +217,8 @@ function RoomBuilder.build(templateId: string): RoomParts?
 		model = model,
 		floor = floor,
 		entranceDoor = entranceDoor,
-		exitDoor = exitDoor,
+		exitDoors = exitDoors,
+		exitOffsetsX = exitCentres,
 		prize = prize,
 		interiorCentre = Vector3.new(0, interior.Y / 2, 0),
 	}

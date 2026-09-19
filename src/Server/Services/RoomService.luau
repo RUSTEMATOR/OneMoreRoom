@@ -14,6 +14,8 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local EnemyConfig = require(ReplicatedStorage.Shared.EnemyConfig)
+local FloorConfig = require(ReplicatedStorage.Shared.FloorConfig)
+local FloorPlan = require(ReplicatedStorage.Shared.FloorPlan)
 local RoomConfig = require(ReplicatedStorage.Shared.RoomConfig)
 local EnemyService = require(script.Parent.EnemyService)
 local PlayerService = require(script.Parent.PlayerService)
@@ -31,9 +33,13 @@ export type Room = {
 	model: Model,
 	floor: BasePart,
 	entranceDoor: BasePart,
-	exitDoor: BasePart,
+	exitDoors: { BasePart },
+	exitOffsetsX: { number },
 	prize: BasePart?,
 	prizeTaken: boolean,
+	-- What this room was generated as. Passed in, never fetched: if RoomService
+	-- asked FloorService for the current plan that would close a boot-fatal cycle.
+	plan: FloorPlan.Plan?,
 
 	phase: RoomPhase,
 	phaseEndsAt: number,
@@ -89,13 +95,19 @@ local function despawnRoomEnemies(room: Room)
 	table.clear(room.enemyIds)
 end
 
+-- Placements come from the plan, so the same seed puts the same enemies in the same
+-- spots. A room with no plan (the practice room builds one from a fixed seed) still
+-- works because FloorPlan is pure and can be called for any template.
 local function spawnEncounter(room: Room)
-	local roomSpec = spec(room.template)
+	local plan = room.plan
+	if plan == nil then
+		return
+	end
 	local origin = room.model:GetPivot()
 
-	for _, offset in roomSpec.enemySpawns do
-		local worldCFrame = origin * CFrame.new(offset + Vector3.new(0, 3, 0))
-		local enemy = EnemyService.spawn(roomSpec.enemyKind, worldCFrame, room.model)
+	for _, placement in plan.enemies do
+		local worldCFrame = origin * CFrame.new(placement.offset + Vector3.new(0, 3, 0))
+		local enemy = EnemyService.spawn(placement.kind, worldCFrame, room.model)
 		if enemy ~= nil then
 			table.insert(room.enemyIds, enemy.id)
 		end
@@ -148,11 +160,20 @@ RoomService.playersInside = playersInside
 
 -- The volume just beyond the exit doorway. A cleared room is left by walking through
 -- it, and FloorService watches this to know when to advance.
-local function playersPastExit(room: Room, depth: number, width: number): { Player }
+-- `exitIndex` selects which door's volume to test. The trigger is centred on that
+-- door's local X, not on the room centre: with two doors at +/-9 a room-centred
+-- volume would sit over the middle pier and match neither.
+local function playersPastExit(
+	room: Room,
+	exitIndex: number,
+	depth: number,
+	width: number
+): { Player }
 	local roomSpec = spec(room.template)
 	local origin = room.model:GetPivot()
 	local edge = roomSpec.interior.Z / 2 + roomSpec.wallThickness
-	local centre = origin * CFrame.new(0, roomSpec.interior.Y / 2, -(edge + depth / 2))
+	local offsetX = room.exitOffsetsX[exitIndex] or 0
+	local centre = origin * CFrame.new(offsetX, roomSpec.interior.Y / 2, -(edge + depth / 2))
 
 	local found = {}
 	for _, state in PlayerService.all() do
@@ -177,8 +198,12 @@ end
 
 RoomService.playersPastExit = playersPastExit
 
--- Where a player should land when a floor loads them into this room.
-function RoomService.entranceCFrame(room: Room, offset: Vector3): CFrame
+-- Where a player should land when a floor loads them into this room. The offset is
+-- derived from this template's interior rather than passed in, so a small room cannot
+-- land the player outside its own walls.
+function RoomService.entranceCFrame(room: Room): CFrame
+	local roomSpec = spec(room.template)
+	local offset = FloorConfig.entranceOffsetFor(roomSpec.interior.Z)
 	local origin = room.model:GetPivot()
 	-- Facing the exit, which is -Z in room space.
 	return origin * CFrame.new(offset) * CFrame.Angles(0, math.pi, 0)
@@ -192,7 +217,9 @@ function RoomService.reset(room: Room)
 	room.phase = "Open"
 	room.phaseEndsAt = 0
 	moveDoor(room, room.entranceDoor, true)
-	moveDoor(room, room.exitDoor, false)
+	for _, door in room.exitDoors do
+		moveDoor(room, door, false)
+	end
 end
 
 -- ------------------------------------------------------------------ prize
@@ -208,8 +235,10 @@ local function stepPrize(room: Room, dt: number)
 	local prizeSpec = RoomConfig.prize
 	prize.CFrame = prize.CFrame * CFrame.Angles(0, prizeSpec.spinPerSecond * dt, 0)
 
-	local roomSpec = spec(room.template)
-	local reward = roomSpec.reward
+	-- Kind comes from the template (a Treasure room is always treasure); only the
+	-- amount is seeded, and it lives on the plan.
+	local plan = room.plan
+	local reward = if plan ~= nil then plan.reward else nil
 	if reward == nil then
 		return
 	end
@@ -288,7 +317,9 @@ local function stepRoom(room: Room, now: number)
 
 	if room.phase == "Clearing_Done" and now >= room.phaseEndsAt then
 		room.phase = "Cleared"
-		moveDoor(room, room.exitDoor, true)
+		for _, door in room.exitDoors do
+			moveDoor(room, door, true)
+		end
 		RoomService.onCleared:Fire(room)
 		return
 	end
@@ -304,8 +335,14 @@ end
 
 -- -------------------------------------------------------------------- api
 
-function RoomService.create(template: string, cframe: CFrame, parent: Instance?): Room?
-	local parts = RoomBuilder.build(template)
+function RoomService.create(
+	template: string,
+	cframe: CFrame,
+	parent: Instance?,
+	plan: FloorPlan.Plan?
+): Room?
+	local exitCount = if plan ~= nil then #plan.exits else 1
+	local parts = RoomBuilder.build(template, exitCount)
 	if parts == nil then
 		return nil
 	end
@@ -317,9 +354,11 @@ function RoomService.create(template: string, cframe: CFrame, parent: Instance?)
 		model = parts.model,
 		floor = parts.floor,
 		entranceDoor = parts.entranceDoor,
-		exitDoor = parts.exitDoor,
+		exitDoors = parts.exitDoors,
+		exitOffsetsX = parts.exitOffsetsX,
 		prize = parts.prize,
 		prizeTaken = false,
+		plan = plan,
 		phase = "Open",
 		phaseEndsAt = 0,
 		enemyIds = {},
@@ -382,10 +421,18 @@ local function buildPracticeRoom()
 	holder.Name = "PracticeRoom"
 	holder.Parent = static
 
+	-- A fixed seed, so the practice room is identical every session and a manual
+	-- pass compares like with like.
+	local practicePlan = FloorPlan.generate(
+		RoomConfig.practice.seed,
+		RoomConfig.practice.depth,
+		RoomConfig.practice.template
+	)
 	local room = RoomService.create(
 		RoomConfig.practice.template,
 		CFrame.new(RoomConfig.practice.position),
-		holder
+		holder,
+		practicePlan
 	)
 	if room ~= nil then
 		practiceRoomId = room.id
@@ -409,17 +456,20 @@ function RoomService.Start()
 	end)
 end
 
--- Kept so the encounter size is asserted against config rather than a literal.
-function RoomService.expectedEnemyCount(template: string): number
-	local roomSpec = spec(template)
-	if roomSpec == nil then
-		return 0
-	end
-	return #roomSpec.enemySpawns
+-- Plan-derived now, so the assertion tracks what was actually generated rather than
+-- a fixed list that no longer exists.
+function RoomService.expectedEnemyCount(room: Room): number
+	local plan = room.plan
+	return if plan ~= nil then #plan.enemies else 0
 end
 
-RoomService.enemyKindFor = function(template: string): string
-	return spec(template).enemyKind
+-- Local X of each exit door, for anything that needs to aim at one.
+function RoomService.exitOffsetX(room: Room, exitIndex: number): number
+	return room.exitOffsetsX[exitIndex] or 0
+end
+
+function RoomService.exitCount(room: Room): number
+	return #room.exitDoors
 end
 
 RoomService.enemyConfig = EnemyConfig
