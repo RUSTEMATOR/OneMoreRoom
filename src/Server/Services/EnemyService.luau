@@ -124,7 +124,10 @@ local function die(enemy: Enemy, killer: Player?)
 		actor = enemy.model,
 		respawnIn = nil,
 	})
-	EnemyService.onKilled:Fire(enemy.kind, killer, awarded)
+	-- The id leads, so listeners can tell WHICH enemy died. Without it a listener
+	-- cannot distinguish its own enemy from any other, which is exactly the bug the
+	-- practice respawn below used to have.
+	EnemyService.onKilled:Fire(enemy.id, enemy.kind, killer, awarded)
 
 	local gen = enemy.generation
 	task.delay(enemySpec.despawnDelay, function()
@@ -399,7 +402,17 @@ local function spawnPractice()
 
 	practiceGeneration += 1
 	local gen = practiceGeneration
-	EnemyService.onKilled.Event:Once(function()
+	local practiceId = enemy.id
+
+	-- Must filter on the id: onKilled fires for every enemy in the game, so a plain
+	-- :Once here is consumed by the first unrelated death and respawns a second
+	-- practice skeleton on top of the live one.
+	local connection: RBXScriptConnection
+	connection = EnemyService.onKilled.Event:Connect(function(killedId: number)
+		if killedId ~= practiceId then
+			return
+		end
+		connection:Disconnect()
 		task.delay(EnemyConfig.practice.respawnDelay, function()
 			if gen ~= practiceGeneration then
 				return
@@ -410,6 +423,32 @@ local function spawnPractice()
 end
 
 EnemyService.onKilled = Instance.new("BindableEvent")
+
+-- The spec suite runs against a live world, and a practice skeleton that hunts the
+-- player mid-suite corrupts unrelated assertions — it cost a false failure in the
+-- Phase 1 i-frame check before this existed. RunAll quiesces the world around the
+-- suite and restores it afterwards.
+function EnemyService.setPracticeEnabled(enabled: boolean)
+	EnemyConfig.practice.enabled = enabled
+	-- Invalidate any pending respawn either way.
+	practiceGeneration += 1
+
+	if enabled then
+		task.spawn(spawnPractice)
+		return
+	end
+
+	local static = FloorService.staticFolder()
+	local folder = static:FindFirstChild("Practice")
+	if folder == nil then
+		return
+	end
+	for _, enemy in EnemyService.all() do
+		if enemy.model:IsDescendantOf(folder) then
+			despawn(enemy)
+		end
+	end
+end
 
 function EnemyService.Init()
 	table.clear(enemies)

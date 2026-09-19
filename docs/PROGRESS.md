@@ -7,7 +7,7 @@ Remote: https://github.com/RUSTEMATOR/OneMoreRoom
 
 ## Current milestone
 
-Phase 3 — First complete room
+Phase 4 — Floor system
 
 ## Awaiting you
 
@@ -65,6 +65,23 @@ Phase 2 proceeds on the assumption the gate passes. If it does not, Phase 2's en
 - [x] `Phase02_Skeleton` — 42 checks
 - [x] **Acceptance playtest passed: 136/136 checks across three specs, zero errors and zero warnings in both datamodels**
 
+### Phase 3 — First complete room
+
+- [x] `RoomConfig` — room templates as data; a room is a ~30-line table
+- [x] `RoomBuilder` — floor, walls, two doorways built from the template around the room's own origin
+- [x] `RoomService` — Open → Sealing → Clearing → Cleared, occupancy polled (never `.Touched`), doors driven server-side, encounter spawned and cleaned up with the room
+- [x] Leaving mid-fight resets the room, so dying does not leave a sealed room the run can never re-enter
+- [x] Practice room in `Workspace/Static`, walkable before floors exist
+- [x] `Phase03_Room` — 37 checks covering geometry, sealing, the encounter, clearing, and reset
+- [x] **Acceptance playtest passed: 173/173 checks across four specs, run twice for stability, zero errors and zero warnings in both datamodels**
+
+#### Fixed during Phase 3
+
+- **Practice skeleton respawn fired on any enemy death.** `onKilled` is a service-wide event and the listener did not filter by id, so killing any skeleton respawned the practice one on top of the live one, compounding each time. Found by auditing against the newly installed `roblox-engineer` skill's connection-leak checklist. `onKilled` now leads with the enemy id, and Phase 2 regresses it.
+- **`CombatService.onPlayerAdded` could double-connect** — `Start` both connects `PlayerAdded` and loops `GetPlayers()`. Now returns early like `PlayerService` does.
+- **`FeedbackController` highlight counter could ratchet** — if a flashed target was destroyed mid-tween, `Completed` might never fire and flashing would disable itself permanently at the cap. Now released exactly once by whichever of tween-completion or a timeout comes first.
+- **Spec suite was not isolated from the live world.** The practice skeleton hit the player during the Phase 1 i-frame check. `RunAll` now quiesces and restores the practice world around the suite.
+
 ## Known issues
 
 - **`StarterCharacterScripts.Health` is not synced.** The node was added to `default.project.json`, but Rojo does not hot-reload the project file and a restart would drop the plugin connection. Harmless right now: `PlayerService.bindCharacter` destroys the default regen script as a backstop, and the acceptance run confirms no `Health` script survives on the character. **Fix by restarting `rojo serve` at the start of the next session.**
@@ -84,13 +101,22 @@ Phase 2 proceeds on the assumption the gate passes. If it does not, Phase 2's en
 | 2026-09-19 | 00 | 14 / 14 | 0 server, 0 client | pass |
 | 2026-09-19 | 01 | 94 / 94 (both specs) | 0 server, 0 client | pass |
 | 2026-09-19 | 02 | 136 / 136 (three specs) | 0 server, 0 client | pass |
+| 2026-09-19 | 03 | 173 / 173 (four specs, ×2 runs) | 0 server, 0 client | pass |
 
-The suite now spends ~25 s in real waits (respawn, cooldowns, regen, chase, despawn). That is not a hang.
+The suite now spends ~35 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
 
 ## Next
 
-1. **You:** run the manual checklist and call the Phase 1 gate, then go fight the practice skeleton
-2. Phase 3 — the first complete room: enter → door locks → enemies spawn → clear → door opens → exit. Carries the vertical-slice gate
+1. **You:** walk the slice and call both gates — Phase 1 (does swinging feel good?) and Phase 3 (is spawn → fight → win → leave fun?). Everything after this is built on those answers.
+2. Phase 4 — `FloorService`: generate a floor, load its room, track completion, advance the player. Fixed sequence, no procedural generation yet.
+
+## Where to go in-game
+
+Everything is walkable from the spawn pad:
+
+- **Training dummy** — 18 studs north (−Z). Takes 14 swings, tilts, resets.
+- **Practice skeleton** — beside it, respawns 6 s after you kill it.
+- **Practice room** — 78 studs north. Walk in and the entrance seals, three skeletons spawn, and clearing them opens the exit. Walk back out mid-fight and it resets.
 
 ## Phase gates
 

@@ -16,6 +16,7 @@ local ORDER = {
 	"TrainingDummyService",
 	"RunSessionService",
 	"EnemyService",
+	"RoomService",
 }
 
 type Service = {

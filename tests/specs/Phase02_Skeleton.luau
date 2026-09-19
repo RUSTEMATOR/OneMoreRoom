@@ -131,8 +131,12 @@ return function()
 
 		-- Park a fresh skeleton just outside detection range and confirm it ignores
 		-- the player, then bring it inside and confirm it notices.
+		--
+		-- Offsets run along +X, not -Z: the training dummy sits on the -Z axis and
+		-- Humanoid:MoveTo has no pathfinding, so a skeleton placed there walks into
+		-- the dummy and the chase assertion fails for the wrong reason.
 		EnemyService.despawnAll()
-		local far = playerRoot.Position + Vector3.new(0, 0, -(SKELETON.detectRange + 15))
+		local far = playerRoot.Position + Vector3.new(SKELETON.detectRange + 15, 0, 0)
 		local watcher = EnemyService.spawn("Skeleton", CFrame.new(far), generated)
 		if watcher == nil then
 			spec:check("watcher skeleton spawned", false)
@@ -144,7 +148,7 @@ return function()
 		spec:truthy("has no target beyond detect range", watcher.target == nil)
 
 		-- Anchor it so Humanoid physics cannot drift it while we assert.
-		local near = playerRoot.Position + Vector3.new(0, 0, -(SKELETON.detectRange - 8))
+		local near = playerRoot.Position + Vector3.new(SKELETON.detectRange - 8, 0, 0)
 		watcher.model:PivotTo(CFrame.new(near))
 		watcher.homePosition = near
 
@@ -171,7 +175,7 @@ return function()
 
 		-- --------------------------------------------- E. leash
 
-		local away = playerRoot.Position + Vector3.new(0, 0, -(SKELETON.leashRange + 25))
+		local away = playerRoot.Position + Vector3.new(SKELETON.leashRange + 25, 0, 0)
 		watcher.model:PivotTo(CFrame.new(away))
 		watcher.homePosition = away
 		task.wait(0.4)
@@ -184,7 +188,7 @@ return function()
 		-- Wait out any i-frames so the blow is not silently absorbed.
 		task.wait(CombatConfig.dodge.iframes + 0.15)
 
-		local adjacent = playerRoot.Position + Vector3.new(0, 0, -3)
+		local adjacent = playerRoot.Position + Vector3.new(3, 0, 0)
 		watcher.model:PivotTo(CFrame.new(adjacent))
 		watcher.homePosition = adjacent
 
@@ -243,6 +247,35 @@ return function()
 			RunSessionService.addGold(SKELETON.goldReward),
 			0
 		)
+
+		-- ----------------------- H. practice respawn is not triggered by others
+
+		-- Regression: onKilled fires for EVERY enemy, so a listener that does not
+		-- filter on the id respawns the practice skeleton whenever any unrelated
+		-- skeleton dies, stacking a second one on top of the live one.
+		local static = workspace:FindFirstChild("Static")
+		local practiceFolder = static and static:FindFirstChild("Practice")
+		if practiceFolder ~= nil then
+			local originalDelay = EnemyConfig.practice.respawnDelay
+			EnemyConfig.practice.respawnDelay = 0.4
+
+			local practiceCountBefore = #practiceFolder:GetChildren()
+			local bystander = EnemyService.spawn("Skeleton", CFrame.new(120, 5, 120), generated)
+			if bystander ~= nil then
+				local bystanderEntry = CombatService.damageableFor(bystander.model)
+				if bystanderEntry ~= nil then
+					bystanderEntry.applyDamage(SKELETON.maxHealth * 2, { source = player })
+				end
+			end
+			task.wait(1.0)
+			spec:equals(
+				"killing an unrelated skeleton does not respawn the practice one",
+				#practiceFolder:GetChildren(),
+				practiceCountBefore
+			)
+
+			EnemyConfig.practice.respawnDelay = originalDelay
+		end
 	end)
 
 	if not ok then

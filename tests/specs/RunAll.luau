@@ -8,12 +8,32 @@ local SPECS = {
 	"Phase00_Boot",
 	"Phase01_Combat",
 	"Phase02_Skeleton",
+	"Phase03_Room",
 }
+
+-- The suite runs against the live world, and the practice skeleton actively hunts the
+-- player. Left running it corrupts unrelated assertions — it hit the player for 14
+-- during the Phase 1 i-frame check, which reads as a product bug rather than
+-- interference. Quiesce around the suite, and restore even if a spec throws.
+--
+-- pcall-wrapped so the harness never dies because a service was renamed or moved.
+local function setPracticeEnabled(enabled: boolean)
+	pcall(function()
+		local services = game:GetService("ServerScriptService"):FindFirstChild("Services")
+		local enemyService = services and services:FindFirstChild("EnemyService")
+		if enemyService ~= nil then
+			(require(enemyService) :: any).setPracticeEnabled(enabled)
+		end
+	end)
+end
 
 return function()
 	local results: { Spec.Result } = {}
 	local passed = 0
 	local failed = 0
+
+	setPracticeEnabled(false)
+	task.wait(0.2)
 
 	for _, name in SPECS do
 		local module = script.Parent:FindFirstChild(name)
@@ -48,6 +68,8 @@ return function()
 			failed += 1
 		end
 	end
+
+	setPracticeEnabled(true)
 
 	return {
 		allPassed = failed == 0,

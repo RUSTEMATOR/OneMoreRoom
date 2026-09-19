@@ -518,9 +518,13 @@ local function registerPlayerDamageable(player: Player, character: Model)
 end
 
 local function onPlayerAdded(player: Player)
-	if combats[player] == nil then
-		combats[player] = newCombat()
+	-- Return, not just guard the table write: Start connects PlayerAdded AND loops
+	-- GetPlayers(), so this can run twice for one player and would otherwise stack a
+	-- second set of CharacterAdded connections.
+	if combats[player] ~= nil then
+		return
 	end
+	combats[player] = newCombat()
 
 	-- CombatService connects its own character lifecycle, because PlayerService must
 	-- not require any other service.

@@ -62,15 +62,26 @@ local function flash(target: Model?)
 	highlight.Adornee = target
 	highlight.Parent = target
 
+	-- Released exactly once, by whichever comes first. If the target is destroyed
+	-- mid-tween, Completed may never fire, and a counter that only ever goes up would
+	-- silently disable flashing for the rest of the session once it hit the cap.
+	local released = false
+	local function release()
+		if released then
+			return
+		end
+		released = true
+		activeHighlights -= 1
+		highlight:Destroy()
+	end
+
 	local tween = TweenService:Create(
 		highlight,
 		TweenInfo.new(CombatConfig.feedback.flashTime),
 		{ FillTransparency = 1 }
 	)
-	tween.Completed:Connect(function()
-		activeHighlights -= 1
-		highlight:Destroy()
-	end)
+	tween.Completed:Connect(release)
+	task.delay(CombatConfig.feedback.flashTime + 0.5, release)
 	tween:Play()
 end
 

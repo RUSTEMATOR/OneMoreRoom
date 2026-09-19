@@ -32,6 +32,25 @@ A connected plugin can still be holding the sync: read the Rojo panel's text wit
 
 **Team Create must stay off.** It and Rojo both want to own script contents. The console line "joined live editing session" means it is on.
 
+## On the `roblox-engineer` skill
+
+A general-purpose `roblox-engineer` skill is installed at `~/.claude/skills/`. It is useful background, but **this file wins where they disagree**, and they do disagree:
+
+| It says | We do | Why ours |
+|---|---|---|
+| `src/shared`, lowercase | `src/Shared` | Rojo maps the folder name straight to `ReplicatedStorage.Shared`; renaming breaks every `require` |
+| kebab-case docs | `docs/COMBAT.md` | Existing convention, no reason to churn |
+| TestEZ | `tests/specs` + a 30-line `Spec` harness | Deliberate Phase 0 decision — revisit past ~15 spec files, not before |
+| `.forgewright/project-profile.json` | not used | Not our toolchain |
+| Client sends a target, server distance-checks it | Remotes take **zero arguments** | Ours is strictly stronger: there is no target to spoof |
+| `Humanoid:TakeDamage` | write `Health` directly | `TakeDamage` is silently swallowed by a ForceField |
+
+Do not restructure the project to match it. Its two genuinely useful checklist items — scale per-frame work by delta time, and do not leak `RBXScriptConnection`s — are conventions here, and auditing against them found two real bugs, so they earn their keep.
+
+**It also contains factually wrong APIs.** Its NPC section uses `Instance.new("PathfindingAgent")` and `Humanoid.PathfindingAgent`, neither of which exists, and it puts a `task.wait(30)` inside a `Heartbeat` handler. Verify anything it claims with `rbx-docs-search` before writing it.
+
+Its one forward-looking contribution worth keeping: **ProfileService** for Phase 13, over raw DataStore, for session locking and reconciliation.
+
 ## Conventions
 
 - **Never name a module after a `game:GetService()` name.** This is why the run-state service is `RunSessionService`, not `RunService` — the latter shadows the real service wherever both are needed, and the resulting bug reads as correct code.
@@ -81,6 +100,10 @@ local result = game:GetService("HttpService"):JSONDecode(raw)
 ```
 
 Specs that only read the DataModel (instances, attributes) pass either way — which is exactly why this is easy to miss until a spec touches service state.
+
+**4. The suite runs against a live world, so quiesce it.** `RunAll` disables the practice skeleton for the duration and restores it afterwards. Before that existed, the practice skeleton wandered into the Phase 1 i-frame check and hit the player for exactly 14 — which reads as a combat bug rather than interference. **Any future world content that acts on its own belongs in that quiesce list.**
+
+Related: `Humanoid:MoveTo` has no pathfinding, so a spec that places an enemy with scenery between it and the player will fail its chase assertion for the wrong reason. Phase 2's offsets run along +X specifically to avoid the training dummy.
 
 **3. `default.project.json` changes need a `rojo serve` restart.** Rojo does not hot-reload the project file, so a newly added node never appears. Restarting drops the plugin connection and needs a manual Connect, so batch project-file changes rather than making them mid-session.
 
