@@ -7,7 +7,7 @@ Remote: https://github.com/RUSTEMATOR/OneMoreRoom
 
 ## Current milestone
 
-Phase 10 — Boss framework and The Warden
+Phase 11 — Second biome
 
 ## Awaiting you
 
@@ -151,6 +151,26 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 - [x] `Phase09_Progression` — 64 checks
 - [x] **Acceptance playtest passed: 941/941 checks across ten specs, run twice, zero errors and zero warnings in both datamodels**
 
+### Phase 10 — Boss framework and The Warden
+
+**This is the last system the MVP gate needs.** Floor 1 through a boss floor now works end to end.
+
+- [x] `BossPhases` and `BossAttacks` — two pure controllers. Phase selection and attack choice are arithmetic with no world, so the headline criterion ("phase transitions fire at HP thresholds") is testable with no Studio.
+- [x] **The arena is a room template**, not a parallel system. `RoomConfig.templates.Boss` goes through the same seal/clear/exit machinery as every other room.
+- [x] `BossService` composes the two controllers; it owns the rig and the clock but not the rules
+- [x] The Warden: 900 HP, three phases (Sword → Summon → Arena), a melee Cleave and a radial Slam that ignores facing
+- [x] **Invulnerable through a transition** — checked the same way i-frames are, rejecting damage with reason `"transition"`, so a burst cannot skip an act
+- [x] Every attack telegraphs longer than the dodge i-frame window, asserted for every attack on every boss, not just the Warden
+- [x] Floor 10 (and every tenth floor after) is forced to the Boss template outside the generation pool; the floor before it offers the boss on both doors rather than faking a choice
+- [x] `Phase10_Boss` — 76 checks, running the validators generically over every `BossConfig` entry rather than the Warden by name, so a second boss is provably a config rather than a fork
+- [x] **Acceptance playtest passed: 1017/1017 checks across eleven specs, run twice, zero errors and zero warnings in both datamodels**
+
+#### Fixed during Phase 10
+
+- **A stale sed replacement silently dropped `RoomService.boss`.** An earlier automated edit's anchor text no longer matched after a StyLua reformat, so the accessor was never inserted — `python`'s `str.replace` fails silently on a non-match, which is exactly the danger of scripted edits without verifying the diff. Caught by the acceptance run, not by review; added `RoomService.boss` directly.
+- **The acceptance spec drove a live boss fight without protecting the test player.** The Warden is real AI, not a mock, and keeps fighting through every `task.wait` in the spec — left unguarded it could kill the tester, firing `FloorService.endRun()` and destroying the room mid-assertion. Added a `surviveWait` helper that keeps the tester topped up through the fight without touching the boss's own timing.
+- **A 1899s `execute_luau` stall that was not a code bug.** One suite run hung on the MCP bridge itself and was killed by the tool's idle timeout; the identical code completed normally in ~70s on retry. `CLAUDE.md` now says to never invoke a spec run as one long blocking call — launch it with `task.spawn` against `_G`, return immediately, and poll.
+
 #### Fixed during Phase 9
 
 - **The practice skeleton was chewing on idle players in the lobby.** Its 34-stud detect range reached the spawn pad, so you could not stand still and read shrine prices. Moved out of aggro range of both spawn and the shrines; verified by watching an idle player hold full health.
@@ -194,6 +214,7 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 | 2026-09-19 | 07 | 719 / 719 (eight specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 08 | 877 / 877 (nine specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 09 | 941 / 941 (ten specs, ×2 runs) | 0 server, 0 client | pass |
+| 2026-09-20 | 10 | 1017 / 1017 (eleven specs, ×2 runs) | 0 server, 0 client | pass |
 
 The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
 
@@ -201,7 +222,7 @@ The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, desp
 
 1. **You:** walk the slice and call both gates — Phase 1 (does swinging feel good?) and Phase 3 (is spawn → fight → win → leave fun?). Everything after this is built on those answers.
 2. Decide whether Shop and Event should wait for Phase 7/12 as I assumed, or get placeholder versions sooner.
-3. Phase 10 — the boss framework and The Warden, which is the last system the MVP gate needs.
+3. Phase 11 — the second biome (The Forgotten Crypt), only after Phase 1–10 is genuinely playable, per the roadmap's own rule.
 
 ## Where to go in-game
 
@@ -211,6 +232,7 @@ Everything is walkable from the spawn pad:
 - **Practice skeleton** — beside it, respawns 6 s after you kill it.
 - **Practice room** — 78 studs north. Walk in and the entrance seals, an encounter spawns, and clearing it opens **two** exits. Walk back out mid-fight and it resets.
 - **Upgrade shrines** — 26 studs west, a row of four. Each shows its level and cost; walk into one to buy. You need Soul Shards, which you get by ending a run.
+- **The Warden** — walk a run to floor 10 (or call `FloorService.loadFloor(10, "Combat")` directly in a spec; the depth forces the Boss template regardless).
 
 ## Phase gates
 

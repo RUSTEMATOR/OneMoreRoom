@@ -60,9 +60,19 @@ A practice skeleton spawns next to the training dummy (`EnemyConfig.practice`) a
 
 ## Bosses
 
-`BossController` composed of `PhaseController`, `AttackController`, `HealthController`, and `ArenaController`. A boss is a *configuration* of that framework plus custom mechanics, never a fork of it.
+The framework is two pure controllers plus a service that composes them. `BossPhases` decides which act is live from a health fraction — no state, no world, just arithmetic, which is what makes "phase transitions fire at HP thresholds" testable with no Studio at all. `BossAttacks` decides what a phase reaches for and whether a landed attack connects. `BossService` owns the rig, the clock, and the world; it does not know the rules, only how to run them.
 
-**The Warden** (Floor 10) — P1 sword attacks, P2 summons skeletons, P3 arena attacks. Phase transitions fire at HP thresholds.
+**A second boss is a `BossConfig` entry, never a fork of the Warden.** The spec runs both validators — `BossPhases.validate` and `BossAttacks.validate` — over every boss in the config, not over the Warden by name, so the framework's own rules stay generic by construction rather than by discipline.
+
+**The arena is a room template**, not a parallel system. `RoomConfig.templates.Boss` goes through the same seal, clear and exit machinery as a Combat room; only the occupant differs, and the room is not cleared until the boss falls. Building a bespoke arena system would have meant re-solving sealing, occupancy and resets for one encounter.
+
+A boss is not a special case of enemy either: it registers as the same `Damageable` the sword already hits, and it is **invulnerable through a phase transition** — the brief pause is what stops a lucky burst from skipping an act, and it is checked at the same place ordinary i-frames are, by rejecting damage with reason `"transition"`.
+
+Every attack telegraphs — a windup, then a flat disc or wedge on the floor, then the hit. **The windup must outlast the dodge i-frame window**, or a boss you cannot read is noise rather than difficulty, and the spec asserts that relation for every attack in every boss.
+
+**The Warden** (Floor 10, 900 HP) — Sword (Cleave only) → Summon (Cleave, periodic skeletons, capped) → Arena (Cleave and Slam, a radial that ignores facing and covers the whole room, so the read is "dodge through it" rather than "run"). A phase lists its attacks weakest-first, signature-last, and selection reaches for the last usable one — so the boss favours its signature move whenever it is off cooldown and falls back only while that move is cooling.
+
+**Every tenth floor is forced to be the Boss template**, outside the ordinary generation pool — a boss must be a landmark you can count toward, never something that might turn up on floor 3. On the floor before it, both exits lead to the boss rather than offering a fake choice between two doors that go to the same place.
 
 ## Feel
 

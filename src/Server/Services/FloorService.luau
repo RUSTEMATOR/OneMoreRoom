@@ -143,9 +143,13 @@ end
 -- MUST NOT YIELD. The floor slab ends exactly at the exit wall, so the exit trigger
 -- volume sits over void; this whole chain completing in one frame is what stops a
 -- player who just walked out from free-falling while `advancing` is latched.
-function FloorService.loadFloor(depth: number, template: string): RoomService.Room?
+function FloorService.loadFloor(depth: number, requested: string): RoomService.Room?
 	FloorService.clear()
 
+	-- The depth wins over the seed on a boss floor. Enforced here rather than only
+	-- in exitOptions, so arriving by any route — advance(), a direct loadFloor, a
+	-- repro — still meets the boss.
+	local template = FloorPlan.forcedTemplate(depth) or requested
 	local seed = FloorService.currentSeed()
 	local plan = FloorPlan.generate(seed, depth, template)
 

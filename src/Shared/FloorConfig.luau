@@ -9,7 +9,7 @@ local FloorConfig = {}
 -- Bumped deliberately whenever generation is *meant* to change. The golden-hash spec
 -- pairs its committed constant with this, so an intentional change is one line plus a
 -- regenerated hash, and an unintentional one is a loud failure.
-FloorConfig.generationVersion = 3
+FloorConfig.generationVersion = 4
 
 FloorConfig.run = {
 	firstFloor = 1,
@@ -41,6 +41,16 @@ FloorConfig.pool = {
 	"Elite",
 	"Healing",
 }
+
+-- Every tenth floor is a boss, regardless of what the seed would otherwise pick.
+-- Deliberately NOT in the pool: a boss must be a landmark you can count toward, not
+-- something that might turn up on floor 3.
+FloorConfig.bossEvery = 10
+FloorConfig.bossTemplate = "Boss"
+
+function FloorConfig.isBossDepth(depth: number): boolean
+	return depth > 0 and depth % FloorConfig.bossEvery == 0
+end
 
 -- Two doors per cleared room.
 FloorConfig.exitCount = 2

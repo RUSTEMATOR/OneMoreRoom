@@ -84,6 +84,31 @@ RoomConfig.templates = {
 		clearDelay = 0.4,
 	},
 
+	-- The arena IS a room. A boss fight seals, clears and opens exits through the
+	-- same machinery as everything else; only what is inside differs.
+	Boss = {
+		id = "Boss",
+		displayName = "Warden's Hall",
+		interior = Vector3.new(60, 26, 60),
+		wallThickness = 3,
+		floorThickness = 1,
+		doorway = { width = 12, height = 14 },
+		floorColor = Color3.fromRGB(52, 46, 62),
+		wallColor = Color3.fromRGB(70, 62, 84),
+		doorColor = Color3.fromRGB(42, 36, 50),
+		trimColor = Color3.fromRGB(176, 122, 220),
+		material = Enum.Material.Slate,
+		doorMaterial = Enum.Material.WoodPlanks,
+		-- No ordinary encounter: the boss is spawned instead, and the room is not
+		-- cleared until it falls.
+		encounter = { kind = "Skeleton", minCount = 0, maxCount = 0, radius = 10 },
+		boss = "Warden",
+		doorTravel = 14,
+		doorTime = 0.7,
+		sealDelay = 0.4,
+		clearDelay = 1.4,
+	},
+
 	Healing = {
 		id = "Healing",
 		displayName = "Healing Room",

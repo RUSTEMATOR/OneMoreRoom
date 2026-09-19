@@ -68,6 +68,14 @@ end
 -- Depth alone would offer the same pair however you arrived, making the choice
 -- cosmetic; the full path prefix would make the digest O(2^depth) and untestable.
 function FloorPlan.exitOptions(seed: number, depth: number, fromTemplate: string): { string }
+	-- Both doors lead to the boss when the next floor is a boss floor. The choice is
+	-- suspended rather than faked: offering two doors that go to the same place would
+	-- be a lie about what the choice means.
+	if FloorConfig.isBossDepth(depth + 1) then
+		local boss = FloorConfig.bossTemplate
+		return { boss, boss }
+	end
+
 	local pool = FloorConfig.pool
 	local rng = Rng.new(seed, "exits", depth, fromTemplate)
 
@@ -233,6 +241,12 @@ end
 function FloorPlan.startingTemplate(seed: number): string
 	local pool = FloorConfig.pool
 	return pool[Rng.new(seed, "start"):int(1, #pool)]
+end
+
+-- What a given depth must be, when the depth itself decides. Returns nil when the
+-- seed is free to choose.
+function FloorPlan.forcedTemplate(depth: number): string?
+	return if FloorConfig.isBossDepth(depth) then FloorConfig.bossTemplate else nil
 end
 
 -- -------------------------------------------------------------------- hash

@@ -110,6 +110,8 @@ Specs that only read the DataModel (instances, attributes) pass either way — w
 
 Related: `Humanoid:MoveTo` has no pathfinding, so a spec that places an enemy with scenery between it and the player will fail its chase assertion for the wrong reason. Phase 2's offsets run along +X specifically to avoid the training dummy.
 
+**3a. A long-running `execute_luau` call can silently stall on the MCP bridge itself, independent of the code.** One `OMF_RunSpecs` run hung for 1899s and was killed by the tool's own idle timeout — no infinite loop, no Studio freeze; a rerun of the identical code completed normally in the expected ~70-80s. **Never invoke a suite run as one long blocking call.** Instead: `task.spawn` the `runner:Invoke()`, stash the result on `_G`, return immediately, then poll with short `execute_luau` calls a few seconds apart until `done` is true. This turns an indefinite stall into a bounded, diagnosable wait, and if it genuinely hangs you still have a live Studio to inspect instead of a dead 30-minute call.
+
 **3. `default.project.json` changes need a `rojo serve` restart.** Rojo does not hot-reload the project file, so a newly added node never appears. Restarting drops the plugin connection and needs a manual Connect, so batch project-file changes rather than making them mid-session.
 
 ## Roblox Studio MCP skills

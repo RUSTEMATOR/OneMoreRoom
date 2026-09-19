@@ -34,8 +34,8 @@ local DIGEST_DEPTH = 8
 --
 -- When generation is MEANT to change, bump FloorConfig.generationVersion and
 -- regenerate this together, in the same commit, with the reason in the message.
-local GOLDEN_VERSION = 3
-local GOLDEN_FINGERPRINT = "b2e974a4b859e675"
+local GOLDEN_VERSION = 4
+local GOLDEN_FINGERPRINT = "4a447d60f7c14c23"
 
 return function()
 	local spec = Spec.new("Phase06_Generation")

@@ -23,12 +23,17 @@ local function makePart(name: string, size: Vector3, color: Color3, collide: boo
 	return part
 end
 
-function EnemyBuilder.build(kind: string): Model
-	local spec = EnemyConfig.kinds[kind]
-	local rig = spec.rig
-
+-- The rig itself, independent of EnemyConfig, so a boss can use the same builder
+-- with its own dimensions. A boss is a bigger enemy, not a different kind of object,
+-- and duplicating rig construction for it would mean fixing every rig bug twice.
+function EnemyBuilder.buildFromRig(
+	name: string,
+	rig: any,
+	maxHealth: number,
+	walkSpeed: number
+): Model
 	local model = Instance.new("Model")
-	model.Name = spec.id
+	model.Name = name
 
 	local root = makePart("HumanoidRootPart", rig.rootSize, rig.boneColor, false)
 	root.Transparency = 1
@@ -60,15 +65,20 @@ function EnemyBuilder.build(kind: string): Model
 
 	local humanoid = Instance.new("Humanoid")
 	humanoid.RigType = Enum.HumanoidRigType.R6
-	humanoid.MaxHealth = spec.maxHealth
-	humanoid.Health = spec.maxHealth
-	humanoid.WalkSpeed = spec.walkSpeed
+	humanoid.MaxHealth = maxHealth
+	humanoid.Health = maxHealth
+	humanoid.WalkSpeed = walkSpeed
 	-- We own death: the state machine despawns the model. Letting Roblox run its own
 	-- death behaviour would fight the despawn timer.
 	humanoid.BreakJointsOnDeath = false
 	humanoid.Parent = model
 
 	return model
+end
+
+function EnemyBuilder.build(kind: string): Model
+	local spec = EnemyConfig.kinds[kind]
+	return EnemyBuilder.buildFromRig(spec.id, spec.rig, spec.maxHealth, spec.walkSpeed)
 end
 
 return EnemyBuilder

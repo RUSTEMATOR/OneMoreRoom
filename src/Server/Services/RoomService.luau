@@ -17,6 +17,7 @@ local EnemyConfig = require(ReplicatedStorage.Shared.EnemyConfig)
 local FloorConfig = require(ReplicatedStorage.Shared.FloorConfig)
 local FloorPlan = require(ReplicatedStorage.Shared.FloorPlan)
 local RoomConfig = require(ReplicatedStorage.Shared.RoomConfig)
+local BossService = require(script.Parent.BossService)
 local EnemyService = require(script.Parent.EnemyService)
 local PlayerService = require(script.Parent.PlayerService)
 local RunSessionService = require(script.Parent.RunSessionService)
@@ -44,6 +45,8 @@ export type Room = {
 	phase: RoomPhase,
 	phaseEndsAt: number,
 	enemyIds: { number },
+	-- Set only for a boss room. The room is not cleared until this falls.
+	bossId: number?,
 	generation: number,
 }
 
@@ -93,6 +96,14 @@ local function despawnRoomEnemies(room: Room)
 		end
 	end
 	table.clear(room.enemyIds)
+
+	if room.bossId ~= nil then
+		local boss = BossService.get(room.bossId)
+		if boss ~= nil then
+			BossService.despawn(boss)
+		end
+		room.bossId = nil
+	end
 end
 
 -- Placements come from the plan, so the same seed puts the same enemies in the same
@@ -104,6 +115,16 @@ local function spawnEncounter(room: Room)
 		return
 	end
 	local origin = room.model:GetPivot()
+
+	-- A boss room spawns its boss instead of an encounter. Same seal, same clear,
+	-- same exits — only the occupant differs.
+	local roomSpec = spec(room.template)
+	if roomSpec.boss ~= nil then
+		local boss = BossService.spawn(roomSpec.boss, origin * CFrame.new(0, 4, -16), room.model)
+		if boss ~= nil then
+			room.bossId = boss.id
+		end
+	end
 
 	for _, placement in plan.enemies do
 		local worldCFrame = origin * CFrame.new(placement.offset + Vector3.new(0, 3, 0))
@@ -132,6 +153,10 @@ local function liveEnemyCount(room: Room): number
 end
 
 RoomService.liveEnemyCount = liveEnemyCount
+
+function RoomService.boss(room: Room): BossService.Boss?
+	return if room.bossId ~= nil then BossService.get(room.bossId) else nil
+end
 
 -- --------------------------------------------------------------- occupancy
 
@@ -314,7 +339,12 @@ local function stepRoom(room: Room, now: number)
 	end
 
 	if room.phase == "Clearing" then
-		if liveEnemyCount(room) == 0 then
+		local bossAlive = false
+		if room.bossId ~= nil then
+			local boss = BossService.get(room.bossId)
+			bossAlive = boss ~= nil and not BossService.isDefeated(boss)
+		end
+		if liveEnemyCount(room) == 0 and not bossAlive then
 			room.phase = "Clearing_Done"
 			room.phaseEndsAt = now + roomSpec.clearDelay
 		end
@@ -368,6 +398,7 @@ function RoomService.create(
 		phase = "Open",
 		phaseEndsAt = 0,
 		enemyIds = {},
+		bossId = nil,
 		generation = 0,
 	}
 

@@ -15,6 +15,7 @@ local SPECS = {
 	"Phase07_Loot",
 	"Phase08_Weapons",
 	"Phase09_Progression",
+	"Phase10_Boss",
 }
 
 -- The suite runs against the live world, and the practice skeleton actively hunts the
