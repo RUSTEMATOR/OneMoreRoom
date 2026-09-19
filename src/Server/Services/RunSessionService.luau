@@ -3,6 +3,8 @@
 -- a name with game:GetService("RunService") shadows the real one wherever both are
 -- needed, and the resulting bug reads as correct code.
 
+local ProgressionService = require(script.Parent.ProgressionService)
+
 local RunSessionService = {}
 
 export type RunState = {
@@ -45,8 +47,11 @@ function RunSessionService.addGold(amount: number): number
 	if state == nil or not state.active or amount <= 0 then
 		return 0
 	end
-	state.gold += amount
-	return amount
+	-- Fortune is applied here, at the one place gold enters a run, so every source
+	-- benefits rather than whichever ones someone remembered to multiply.
+	local scaled = math.floor(amount * ProgressionService.partyGoldMultiplier() + 0.5)
+	state.gold += scaled
+	return scaled
 end
 
 -- Formatted the way a bug report should carry it: "seed:839271 path:1,2,1".

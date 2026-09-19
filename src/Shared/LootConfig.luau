@@ -114,6 +114,16 @@ LootConfig.dropPool = {
 	"Shroud",
 }
 
+-- Relics only, for the Heirloom upgrade's starting grant. Explicit and ordered for
+-- the same reason dropPool is: a seeded roll indexes it.
+LootConfig.relicPool = {
+	"BloodCharm",
+	"IronHeart",
+	"LuckyCoin",
+	"Whetstone",
+	"SecondWind",
+}
+
 LootConfig.drops = {
 	-- Chance that a given enemy carries equipment at all. Elites are worth killing.
 	baseChance = 0.18,

@@ -11,6 +11,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local ORDER = {
 	"PlayerService",
 	"SaveService",
+	"ProgressionService",
 	"RunSessionService",
 	"InventoryService",
 	"CombatService",

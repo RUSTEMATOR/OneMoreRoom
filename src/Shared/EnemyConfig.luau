@@ -95,7 +95,10 @@ EnemyConfig.kinds = {
 EnemyConfig.practice = {
 	enabled = true,
 	kind = "Skeleton",
-	position = Vector3.new(10, 3, -18),
+	-- Deliberately beyond its own detectRange (34) from the spawn pad and the
+	-- upgrade shrines. Closer than this and an idle player is chewed on while
+	-- standing in the lobby reading shrine prices.
+	position = Vector3.new(14, 3, -42),
 	respawnDelay = 6.0,
 }
 

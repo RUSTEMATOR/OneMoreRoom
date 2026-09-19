@@ -19,6 +19,7 @@ local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local LootConfig = require(ReplicatedStorage.Shared.LootConfig)
 local WeaponStats = require(ReplicatedStorage.Shared.WeaponStats)
 local PlayerService = require(script.Parent.PlayerService)
+local ProgressionService = require(script.Parent.ProgressionService)
 local RunSessionService = require(script.Parent.RunSessionService)
 local SaveService = require(script.Parent.SaveService)
 
@@ -179,9 +180,17 @@ end
 
 -- ------------------------------------------------------------------ granting
 
+-- Permanent upgrades scale the BASE, run equipment adds a flat bonus on top. That
+-- order matters: Vitality should make Iron Heart better in absolute terms, not
+-- multiply it as well.
 local function applyMaxHealth(player: Player)
-	local bonus = InventoryService.maxHealthBonus(player)
-	PlayerService.setMaxHealth(player, CombatConfig.player.maxHealth + bonus)
+	local base = CombatConfig.player.maxHealth * ProgressionService.maxHealthMultiplier(player)
+	PlayerService.setMaxHealth(player, base + InventoryService.maxHealthBonus(player))
+end
+
+-- Exposed so a run beginning can reapply the ceiling before anything reads it.
+function InventoryService.refreshMaxHealth(player: Player)
+	applyMaxHealth(player)
 end
 
 function InventoryService.grant(player: Player, itemId: string): boolean

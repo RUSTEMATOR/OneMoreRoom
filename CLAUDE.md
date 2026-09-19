@@ -104,6 +104,8 @@ local result = game:GetService("HttpService"):JSONDecode(raw)
 
 Specs that only read the DataModel (instances, attributes) pass either way — which is exactly why this is easy to miss until a spec touches service state.
 
+**This applies to ad-hoc probing too, not just specs.** `require(ServerScriptService.Services.PlayerService)` typed straight into `execute_luau` returns a fresh, un-booted copy: `PlayerService.all()` comes back empty while the real service has players, and it reads exactly like a catastrophic state-loss bug. It is not. **When probing from `execute_luau`, read DataModel state — attributes, instances, properties — because those are shared across VMs.** If you genuinely need module state, go through `OMF_RunSpecs`.
+
 **4. The suite runs against a live world, so quiesce it.** `RunAll` disables the practice skeleton for the duration and restores it afterwards. Before that existed, the practice skeleton wandered into the Phase 1 i-frame check and hit the player for exactly 14 — which reads as a combat bug rather than interference. **Any future world content that acts on its own belongs in that quiesce list.**
 
 Related: `Humanoid:MoveTo` has no pathfinding, so a spec that places an enemy with scenery between it and the player will fail its chase assertion for the wrong reason. Phase 2's offsets run along +X specifically to avoid the training dummy.

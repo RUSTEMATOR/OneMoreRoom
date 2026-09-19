@@ -7,7 +7,7 @@ Remote: https://github.com/RUSTEMATOR/OneMoreRoom
 
 ## Current milestone
 
-Phase 9 — Progression
+Phase 10 — Boss framework and The Warden
 
 ## Awaiting you
 
@@ -137,6 +137,24 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 - [x] `Phase08_Weapons` — 158 checks
 - [x] **Acceptance playtest passed: 877/877 checks across nine specs, run twice, zero errors and zero warnings in both datamodels**
 
+### Phase 9 — Progression
+
+**This phase closes the loop the MVP gate is defined by**: die, return to the lobby, buy something, start again stronger.
+
+- [x] `UpgradeConfig` — four upgrades (Vitality, Power, Fortune, Heirloom) with linear cost curves and hard caps. The spec asserts the caps stay restrained so nobody quietly widens them.
+- [x] `ProgressionService` — levels, costs, folded multipliers, and lobby shrines
+- [x] **No purchase remote at all.** You walk into a shrine and the server decides; a client cannot ask for an upgrade or a price. That is the strongest server authority available — the attack surface does not exist.
+- [x] Upgrades scale the **base**, run equipment adds on top: Vitality makes Iron Heart better in absolute terms rather than multiplying it too
+- [x] Fortune applies where gold enters a run, so every source benefits rather than whichever ones someone remembered
+- [x] Heirloom grants **seeded** starting relics, keyed separately from floor generation so buying it cannot shift layouts
+- [x] Death clears the run and preserves the meta — asserted directly, both halves
+- [x] `Phase09_Progression` — 64 checks
+- [x] **Acceptance playtest passed: 941/941 checks across ten specs, run twice, zero errors and zero warnings in both datamodels**
+
+#### Fixed during Phase 9
+
+- **The practice skeleton was chewing on idle players in the lobby.** Its 34-stud detect range reached the spawn pad, so you could not stand still and read shrine prices. Moved out of aggro range of both spawn and the shrines; verified by watching an idle player hold full health.
+
 #### Fixed during Phase 6
 
 - **`Rng` sub-stream keys collided.** Parts were folded with no separator, so `Rng.new(s, "k", 1, 23)` and `Rng.new(s, "k", 12, 3)` were the *same stream*. Invisible while every key was `(name, depth)` — and Phase 6 introduces exactly the colliding shape. Caught before any golden hash was committed, which is the only reason the fix was free. `Phase00_Boot` now regresses it.
@@ -175,6 +193,7 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 | 2026-09-19 | 06 | 578 / 578 (seven specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 07 | 719 / 719 (eight specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 08 | 877 / 877 (nine specs, ×2 runs) | 0 server, 0 client | pass |
+| 2026-09-19 | 09 | 941 / 941 (ten specs, ×2 runs) | 0 server, 0 client | pass |
 
 The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
 
@@ -182,7 +201,7 @@ The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, desp
 
 1. **You:** walk the slice and call both gates — Phase 1 (does swinging feel good?) and Phase 3 (is spawn → fight → win → leave fun?). Everything after this is built on those answers.
 2. Decide whether Shop and Event should wait for Phase 7/12 as I assumed, or get placeholder versions sooner.
-3. Phase 9 — progression: Soul Shards become spendable on permanent upgrades, and the die → lobby → buy → run loop closes.
+3. Phase 10 — the boss framework and The Warden, which is the last system the MVP gate needs.
 
 ## Where to go in-game
 
@@ -190,7 +209,8 @@ Everything is walkable from the spawn pad:
 
 - **Training dummy** — 18 studs north (−Z). Takes 14 swings, tilts, resets.
 - **Practice skeleton** — beside it, respawns 6 s after you kill it.
-- **Practice room** — 78 studs north. Walk in and the entrance seals, three skeletons spawn, and clearing them opens the exit. Walk back out mid-fight and it resets.
+- **Practice room** — 78 studs north. Walk in and the entrance seals, an encounter spawns, and clearing it opens **two** exits. Walk back out mid-fight and it resets.
+- **Upgrade shrines** — 26 studs west, a row of four. Each shows its level and cost; walk into one to buy. You need Soul Shards, which you get by ending a run.
 
 ## Phase gates
 

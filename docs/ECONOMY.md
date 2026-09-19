@@ -10,9 +10,22 @@ Two economies that never mix.
 
 ## Meta economy — kept after death
 
-**Soul Shards** → permanent upgrades. Deliberately restrained: `+5% HP`, `+3% damage`, `+5% gold`, `+1 starting relic`. The game should not become a giant RPG where meta progression replaces skill.
+**Soul Shards** → permanent upgrades, bought at shrines in the lobby. Deliberately restrained:
 
-Shards are paid when a run *ends*, scaled by floors cleared, so a deep failure is still worth something. Spending them is Phase 9.
+| Upgrade | Effect | Max | Fully bought |
+|---|---|---|---|
+| Vitality | +5% max health per level | 8 | +40% health |
+| Power | +3% damage per level | 8 | +24% damage |
+| Fortune | +5% gold per level | 6 | +30% gold |
+| Heirloom | begin each run with one more relic | 3 | 3 starting relics |
+
+The caps are the point. A fully-upgraded player is meaningfully stronger but is not playing a different game, and the spec asserts Vitality stays under +50% and Power under +30% so nobody quietly widens them.
+
+Shards are paid when a run *ends*, scaled by floors cleared, so a deep failure is still worth something.
+
+**Upgrades scale the base; run equipment adds on top.** Vitality multiplies the 100 HP base, then Iron Heart's +25 is added to the result. That ordering means Vitality makes Iron Heart better in absolute terms rather than multiplying it too — meta progression should lift the floor, not compound with everything you find.
+
+**There is no purchase remote.** You walk into a shrine and the server decides. A client cannot ask for a specific upgrade, let alone a specific price, which is the strongest form of server authority available: the attack surface does not exist. Proximity is polled, never `.Touched` — that is tied to network ownership, and for a shop it would be an exploit rather than a curiosity.
 
 ## Relics
 

@@ -15,14 +15,19 @@ local RunService = game:GetService("RunService")
 
 local FloorConfig = require(ReplicatedStorage.Shared.FloorConfig)
 local FloorPlan = require(ReplicatedStorage.Shared.FloorPlan)
+local LootConfig = require(ReplicatedStorage.Shared.LootConfig)
+local Rng = require(ReplicatedStorage.Shared.Rng)
 local Net = require(ReplicatedStorage.Shared.Net)
 local InventoryService = require(script.Parent.InventoryService)
 local PlayerService = require(script.Parent.PlayerService)
+local ProgressionService = require(script.Parent.ProgressionService)
 local RoomService = require(script.Parent.RoomService)
 local RunSessionService = require(script.Parent.RunSessionService)
 local WorldFolders = require(script.Parent.Parent.World.WorldFolders)
 
 local FloorService = {}
+
+local grantStartingRelics: (seed: number) -> ()
 
 local currentRoom: RoomService.Room? = nil
 local currentPlan: FloorPlan.Plan? = nil
@@ -86,6 +91,25 @@ end
 function FloorService.isRunActive(): boolean
 	local run = RunSessionService.get()
 	return run ~= nil and run.active
+end
+
+-- Seeded, so two runs on one seed open with the same relics. Keyed separately from
+-- floor generation, so buying Heirloom cannot shift the layouts.
+function grantStartingRelics(seed: number)
+	for _, state in PlayerService.all() do
+		local count = ProgressionService.startingRelicCount(state.player)
+		if count <= 0 then
+			continue
+		end
+		local rng = Rng.new(seed, "startingRelics", state.player.UserId)
+		for _ = 1, count do
+			local pick = LootConfig.relicPool[rng:int(1, #LootConfig.relicPool)]
+			InventoryService.grant(state.player, pick)
+		end
+	end
+	for _, state in PlayerService.all() do
+		InventoryService.refreshMaxHealth(state.player)
+	end
 end
 
 -- ------------------------------------------------------------------ loading
@@ -167,6 +191,13 @@ function FloorService.beginRun(seed: number?): RoomService.Room?
 	RunSessionService.begin(chosen)
 	advancing = false
 	nextTemplate = nil
+
+	-- A fresh run starts clean, then the Heirloom upgrade hands back whatever it
+	-- has bought. Clearing first matters: otherwise a second run would inherit the
+	-- first one's equipment and the run/meta split would be a lie.
+	InventoryService.clearRun()
+	InventoryService.clearPickups()
+	grantStartingRelics(chosen)
 
 	local template = FloorPlan.startingTemplate(chosen)
 	print(`[OMF] run started — {RunSessionService.describe()} floor 1 {template}`)

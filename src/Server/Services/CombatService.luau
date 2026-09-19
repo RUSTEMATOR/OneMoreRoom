@@ -18,6 +18,7 @@ local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Net = require(ReplicatedStorage.Shared.Net)
 local WeaponStats = require(ReplicatedStorage.Shared.WeaponStats)
 local InventoryService = require(script.Parent.InventoryService)
+local ProgressionService = require(script.Parent.ProgressionService)
 local PlayerService = require(script.Parent.PlayerService)
 local WeaponBuilder = require(script.Parent.Parent.Combat.WeaponBuilder)
 
@@ -252,8 +253,14 @@ local function queryArc(player: Player, combat: CombatState)
 		-- Relics are applied here, at the one place a player's swing becomes damage,
 		-- rather than baked into the weapon: Blood Charm is conditional on current
 		-- health and would be wrong the moment it was cached.
-		local outgoing =
-			math.max(0, weapon.damage * InventoryService.outgoingDamageMultiplier(player))
+		-- Run equipment and permanent upgrades compose here and nowhere else, so
+		-- there is exactly one place where a swing becomes a number.
+		local outgoing = math.max(
+			0,
+			weapon.damage
+				* InventoryService.outgoingDamageMultiplier(player)
+				* ProgressionService.damageMultiplier(player)
+		)
 
 		local dealt, reason = target.applyDamage(outgoing, {
 			source = player,
