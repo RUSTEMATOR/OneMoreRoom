@@ -1,0 +1,18 @@
+# Build output / local place file
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+/place/
+/build/
+sourcemap.json
+
+# selene cached Roblox std (regenerated on demand)
+roblox.yml
+
+# Rokit local install
+/.rokit/
+
+# Editor / OS
+.DS_Store
+.vscode/

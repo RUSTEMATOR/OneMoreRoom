@@ -1,0 +1,54 @@
+{
+	"name": "one-more-floor",
+	"tree": {
+		"$className": "DataModel",
+
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"$ignoreUnknownInstances": true,
+
+			"Shared": {
+				"$path": "src/Shared"
+			},
+
+			"Remotes": {
+				"$className": "Folder",
+				"$ignoreUnknownInstances": true
+			},
+
+			"Assets": {
+				"$className": "Folder",
+				"$ignoreUnknownInstances": true
+			}
+		},
+
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"$path": "src/Server"
+		},
+
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"$ignoreUnknownInstances": true,
+
+			"Specs": {
+				"$path": "tests/specs"
+			}
+		},
+
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"$ignoreUnknownInstances": true,
+
+			"StarterPlayerScripts": {
+				"$className": "StarterPlayerScripts",
+				"$path": "src/Client"
+			}
+		},
+
+		"Workspace": {
+			"$className": "Workspace",
+			"$ignoreUnknownInstances": true
+		}
+	}
+}

@@ -1,0 +1,18 @@
+#!/bin/sh
+# Kept under a second on purpose — a slow hook is a bypassed hook.
+set -e
+
+export PATH="$HOME/.rokit/bin:$PATH"
+
+stylua --check src tests
+selene src tests
+
+# Strip Lua comments before matching, and require a call, so prose about the rule
+# does not trip it.
+if git diff --cached -U0 -- 'src/*' |
+	grep -E '^\+' |
+	sed 's/--.*$//' |
+	grep -qE '\bmath\.random[[:space:]]*\('; then
+	echo "error: use Shared/Rng.luau (seeded) — math.random breaks run reproducibility" >&2
+	exit 1
+fi
