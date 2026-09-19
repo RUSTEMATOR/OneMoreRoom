@@ -16,6 +16,7 @@ local RunService = game:GetService("RunService")
 local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Net = require(ReplicatedStorage.Shared.Net)
+local InventoryService = require(script.Parent.InventoryService)
 local PlayerService = require(script.Parent.PlayerService)
 local WeaponBuilder = require(script.Parent.Parent.Combat.WeaponBuilder)
 
@@ -176,7 +177,10 @@ function CombatService.applyDamageToPlayer(
 	if os.clock() < combat.iframeUntil then
 		return 0, "iframes"
 	end
-	return PlayerService.applyDamage(player, amount, info)
+	-- Armour is applied here, at the one place damage reaches a player, so enemies
+	-- and the environment both go through it.
+	local incoming = math.max(0, amount * InventoryService.incomingDamageMultiplier(player))
+	return PlayerService.applyDamage(player, incoming, info)
 end
 
 -- ------------------------------------------------------------------- swings
@@ -225,7 +229,13 @@ local function queryArc(player: Player, combat: CombatState)
 		combat.swingHits[target.model] = true
 		hitCount += 1
 
-		local dealt, reason = target.applyDamage(weapon.damage, {
+		-- Relics are applied here, at the one place a player's swing becomes damage,
+		-- rather than baked into the weapon: Blood Charm is conditional on current
+		-- health and would be wrong the moment it was cached.
+		local outgoing =
+			math.max(0, weapon.damage * InventoryService.outgoingDamageMultiplier(player))
+
+		local dealt, reason = target.applyDamage(outgoing, {
 			source = player,
 			weapon = combat.weapon,
 			position = part.Position,
@@ -474,7 +484,9 @@ local function step(dt: number)
 
 		-- 3. Stamina regen.
 		if now >= combat.staminaReadyAt and state.stamina < state.maxStamina then
-			PlayerService.addStamina(player, CombatConfig.stamina.regenPerSecond * dt)
+			local rate = CombatConfig.stamina.regenPerSecond
+				* InventoryService.staminaRegenMultiplier(player)
+			PlayerService.addStamina(player, rate * dt)
 		end
 
 		-- 4. Attack phases.

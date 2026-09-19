@@ -12,6 +12,7 @@ local ORDER = {
 	"PlayerService",
 	"SaveService",
 	"RunSessionService",
+	"InventoryService",
 	"CombatService",
 	"EnemyService",
 	"TrainingDummyService",

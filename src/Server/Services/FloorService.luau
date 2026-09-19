@@ -16,6 +16,7 @@ local RunService = game:GetService("RunService")
 local FloorConfig = require(ReplicatedStorage.Shared.FloorConfig)
 local FloorPlan = require(ReplicatedStorage.Shared.FloorPlan)
 local Net = require(ReplicatedStorage.Shared.Net)
+local InventoryService = require(script.Parent.InventoryService)
 local PlayerService = require(script.Parent.PlayerService)
 local RoomService = require(script.Parent.RoomService)
 local RunSessionService = require(script.Parent.RunSessionService)
@@ -173,9 +174,23 @@ function FloorService.beginRun(seed: number?): RoomService.Room?
 end
 
 function FloorService.endRun()
-	if FloorService.isRunActive() then
-		print(`[OMF] run ended — {RunSessionService.describe()}`)
+	local wasActive = FloorService.isRunActive()
+	local floorsCleared = math.max(0, FloorService.currentFloor() - 1)
+
+	if wasActive then
+		-- The meta half of the economy: Soul Shards survive the run, scaled by how
+		-- far it got, so a deep failure still pays for something.
+		local shards = InventoryService.awardRunEnd(floorsCleared)
+		print(
+			`[OMF] run ended — {RunSessionService.describe()} `
+				.. `floors:{floorsCleared} shards:+{shards}`
+		)
 	end
+
+	-- Equipment is run-scoped and goes with it; Soul Shards were already banked.
+	InventoryService.clearRun()
+	InventoryService.clearPickups()
+
 	FloorService.clear()
 	RunSessionService.finish()
 	advancing = false

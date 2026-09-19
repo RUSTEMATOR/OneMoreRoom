@@ -7,7 +7,7 @@ Remote: https://github.com/RUSTEMATOR/OneMoreRoom
 
 ## Current milestone
 
-Phase 7 — Loot
+Phase 8 — Weapons
 
 ## Awaiting you
 
@@ -112,6 +112,19 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 - [x] `Phase06_Generation` — 300+ checks, nearly all pure
 - [x] **Acceptance playtest passed: 578/578 checks across seven specs, run twice, zero errors and zero warnings in both datamodels**
 
+### Phase 7 — Loot
+
+- [x] `LootConfig` — 5 relics and 3 armour pieces, each declaring plain named effect fields. Nothing knows how an effect is applied; `InventoryService` folds, combat reads the fold.
+- [x] `InventoryService` — run-scoped holdings, modifier aggregation, walk-into pickups, Soul Shard payouts
+- [x] **Drops are pre-rolled but not pre-decided.** The plan fixes a 0–1 roll per enemy; the *threshold* is evaluated live at kill time including Lucky Coin. That is what lets a relic change drop rates without making generation depend on inventory — and drops no longer depend on kill order.
+- [x] Relics measurably change combat: outgoing damage, incoming damage, max health and stamina regen all read the aggregate. Conditional effects are evaluated when asked, never cached.
+- [x] Soul Shards paid at run end, scaled by floors cleared, banked through `SaveService`
+- [x] Golden hash regenerated and `generationVersion` bumped to 2, deliberately, in the same commit — loot is now part of what a seed promises
+- [x] `Phase07_Loot` — 141 checks
+- [x] **Acceptance playtest passed: 719/719 checks across eight specs, run twice, zero errors and zero warnings in both datamodels**
+
+**Not built: weapon drops.** Dropping "a Sword" when the Sword is the only weapon is a reward that changes nothing; the archetypes and modifiers that make it a real choice are Phase 8's subject. The category exists so that becomes a data entry, and the spec asserts the pool stays weapon-free until then.
+
 #### Fixed during Phase 6
 
 - **`Rng` sub-stream keys collided.** Parts were folded with no separator, so `Rng.new(s, "k", 1, 23)` and `Rng.new(s, "k", 12, 3)` were the *same stream*. Invisible while every key was `(name, depth)` — and Phase 6 introduces exactly the colliding shape. Caught before any golden hash was committed, which is the only reason the fix was free. `Phase00_Boot` now regresses it.
@@ -148,6 +161,7 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 | 2026-09-19 | 04 | 211 / 211 (five specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 05 | 283 / 283 (six specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 06 | 578 / 578 (seven specs, ×2 runs) | 0 server, 0 client | pass |
+| 2026-09-19 | 07 | 719 / 719 (eight specs, ×2 runs) | 0 server, 0 client | pass |
 
 The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
 
@@ -155,7 +169,7 @@ The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, desp
 
 1. **You:** walk the slice and call both gates — Phase 1 (does swinging feel good?) and Phase 3 (is spawn → fight → win → leave fun?). Everything after this is built on those answers.
 2. Decide whether Shop and Event should wait for Phase 7/12 as I assumed, or get placeholder versions sooner.
-3. Phase 7 — loot: gold, equipment and Soul Shards, with drop rolls on the run seed so loot is as reproducible as layout.
+3. Phase 8 — weapons: Greatsword and Daggers alongside the Sword, plus a modifier system so "Rusted Dagger, +15% speed, −10% damage" is a data row. Weapon drops turn on with it.
 
 ## Where to go in-game
 

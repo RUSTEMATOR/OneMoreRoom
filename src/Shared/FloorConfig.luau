@@ -9,7 +9,7 @@ local FloorConfig = {}
 -- Bumped deliberately whenever generation is *meant* to change. The golden-hash spec
 -- pairs its committed constant with this, so an intentional change is one line plus a
 -- regenerated hash, and an unintentional one is a loud failure.
-FloorConfig.generationVersion = 1
+FloorConfig.generationVersion = 2
 
 FloorConfig.run = {
 	firstFloor = 1,

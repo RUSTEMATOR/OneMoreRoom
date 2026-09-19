@@ -107,7 +107,11 @@ local function spawnEncounter(room: Room)
 
 	for _, placement in plan.enemies do
 		local worldCFrame = origin * CFrame.new(placement.offset + Vector3.new(0, 3, 0))
-		local enemy = EnemyService.spawn(placement.kind, worldCFrame, room.model)
+		local enemy = EnemyService.spawn(placement.kind, worldCFrame, room.model, {
+			roll = placement.dropRoll,
+			item = placement.dropItem,
+			gold = placement.bonusGold,
+		})
 		if enemy ~= nil then
 			table.insert(room.enemyIds, enemy.id)
 		end

@@ -16,6 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EnemyConfig = require(ReplicatedStorage.Shared.EnemyConfig)
 local FloorConfig = require(ReplicatedStorage.Shared.FloorConfig)
+local LootConfig = require(ReplicatedStorage.Shared.LootConfig)
 local RoomConfig = require(ReplicatedStorage.Shared.RoomConfig)
 local Rng = require(ReplicatedStorage.Shared.Rng)
 
@@ -24,6 +25,17 @@ local FloorPlan = {}
 export type EnemyPlacement = {
 	kind: string,
 	offset: Vector3,
+	-- Loot is PRE-ROLLED here but not PRE-DECIDED. The plan stores a 0..1 roll and
+	-- what the drop would be; whether it actually drops is compared against the
+	-- live chance at kill time, which includes the player's Lucky Coin bonus.
+	--
+	-- That is what lets a relic affect drop rates without making generation depend
+	-- on inventory. The roll stays a pure function of the seed, so it hashes; and
+	-- since inventory is itself determined by seed and path, the whole thing is
+	-- still reproducible.
+	dropRoll: number,
+	dropItem: string,
+	bonusGold: number,
 }
 
 export type RewardPlan = {
@@ -141,7 +153,14 @@ local function placeEnemies(seed: number, depth: number, template: string): { En
 			)
 		end
 
-		table.insert(placements, { kind = encounter.kind, offset = chosen :: Vector3 })
+		local lootRng = Rng.new(seed, "loot", depth, template, index)
+		table.insert(placements, {
+			kind = encounter.kind,
+			offset = chosen :: Vector3,
+			dropRoll = quantize(lootRng:number()),
+			dropItem = LootConfig.dropPool[lootRng:int(1, #LootConfig.dropPool)],
+			bonusGold = lootRng:int(LootConfig.drops.bonusGoldMin, LootConfig.drops.bonusGoldMax),
+		})
 	end
 
 	return placements
@@ -197,6 +216,7 @@ function FloorPlan.hash(plan: Plan): string
 		table.insert(
 			parts,
 			`e={placement.kind}:{quantize(placement.offset.X)}:{quantize(placement.offset.Z)}`
+				.. `:{placement.dropRoll}:{placement.dropItem}:{placement.bonusGold}`
 		)
 	end
 

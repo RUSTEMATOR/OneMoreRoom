@@ -17,7 +17,9 @@ local TweenService = game:GetService("TweenService")
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local EnemyConfig = require(ReplicatedStorage.Shared.EnemyConfig)
 local CombatService = require(script.Parent.CombatService)
+local LootConfig = require(ReplicatedStorage.Shared.LootConfig)
 local EnemyBuilder = require(script.Parent.Parent.Combat.EnemyBuilder)
+local InventoryService = require(script.Parent.InventoryService)
 local PlayerService = require(script.Parent.PlayerService)
 local RunSessionService = require(script.Parent.RunSessionService)
 local WorldFolders = require(script.Parent.Parent.World.WorldFolders)
@@ -45,6 +47,9 @@ export type Enemy = {
 	attackReadyAt: number,
 	attackLanded: boolean,
 	generation: number,
+	-- Pre-rolled by FloorPlan so a drop does not depend on kill order. Whether it
+	-- actually lands is decided here, against the live party loot bonus.
+	drop: { roll: number, item: string, gold: number }?,
 }
 
 local enemies: { [number]: Enemy } = {}
@@ -119,6 +124,25 @@ local function die(enemy: Enemy, killer: Player?)
 	lunge(enemy, 80, 0.25)
 
 	local awarded = RunSessionService.addGold(enemySpec.goldReward)
+
+	-- The roll was fixed at generation time; the THRESHOLD is live, which is how a
+	-- Lucky Coin can raise drop rates without making generation depend on inventory.
+	local drop = enemy.drop
+	if drop ~= nil then
+		local base = if string.find(enemy.kind, "Elite")
+			then LootConfig.drops.eliteChance
+			else LootConfig.drops.baseChance
+		local chance =
+			math.min(LootConfig.drops.maxChance, base + InventoryService.partyLootChanceBonus())
+		if drop.roll < chance then
+			InventoryService.spawnPickup(
+				drop.item,
+				drop.gold,
+				CFrame.new(enemy.root.Position),
+				enemy.model.Parent or workspace
+			)
+		end
+	end
 	CombatService.broadcast({
 		kind = "Died",
 		actor = enemy.model,
@@ -176,7 +200,12 @@ end
 
 -- ------------------------------------------------------------------- spawn
 
-function EnemyService.spawn(kind: string, cframe: CFrame, parent: Instance?): Enemy?
+function EnemyService.spawn(
+	kind: string,
+	cframe: CFrame,
+	parent: Instance?,
+	drop: { roll: number, item: string, gold: number }?
+): Enemy?
 	local enemySpec = spec(kind)
 	if enemySpec == nil then
 		return nil
@@ -208,6 +237,7 @@ function EnemyService.spawn(kind: string, cframe: CFrame, parent: Instance?): En
 		attackReadyAt = 0,
 		attackLanded = false,
 		generation = 0,
+		drop = drop,
 	}
 
 	model.Parent = parent or WorldFolders.generated()

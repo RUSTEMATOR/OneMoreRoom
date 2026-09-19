@@ -165,6 +165,29 @@ function PlayerService.setHealth(player: Player, value: number)
 	mirror(state)
 end
 
+-- Max health is a stored number, not a derived one, so equipment that raises it has
+-- to push the new ceiling in. Current health rises with it rather than staying put,
+-- or picking up Iron Heart would read as "you got a bigger empty bar".
+function PlayerService.setMaxHealth(player: Player, value: number)
+	local state = states[player]
+	if state == nil then
+		return
+	end
+	local previous = state.maxHealth
+	state.maxHealth = math.max(1, value)
+	local delta = state.maxHealth - previous
+	if delta > 0 then
+		state.health += delta
+	end
+	state.health = math.clamp(state.health, 0, state.maxHealth)
+
+	local humanoid = state.humanoid
+	if humanoid ~= nil and humanoid.Parent ~= nil then
+		humanoid.MaxHealth = state.maxHealth
+	end
+	mirror(state)
+end
+
 function PlayerService.setStamina(player: Player, value: number)
 	local state = states[player]
 	if state == nil then
