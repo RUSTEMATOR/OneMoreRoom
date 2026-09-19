@@ -18,6 +18,7 @@ local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local FloorConfig = require(ReplicatedStorage.Shared.FloorConfig)
 local FloorPlan = require(ReplicatedStorage.Shared.FloorPlan)
 local LootConfig = require(ReplicatedStorage.Shared.LootConfig)
+local WeaponStats = require(ReplicatedStorage.Shared.WeaponStats)
 local FloorService = require(ServerScriptService.Services.FloorService)
 local InventoryService = require(ServerScriptService.Services.InventoryService)
 local PlayerService = require(ServerScriptService.Services.PlayerService)
@@ -73,14 +74,16 @@ return function()
 		LootConfig.drops.maxChance < 1
 	)
 
-	-- Weapon drops are deliberately absent until archetypes exist in Phase 8.
+	-- Weapons are GENERATED, not catalogued, so the fixed drop pool holds only
+	-- relics and armour. A weapon in here would mean someone had catalogued one.
 	local weaponInPool = false
 	for _, id in LootConfig.dropPool do
 		if LootConfig.items[id].category == "Weapon" then
 			weaponInPool = true
 		end
 	end
-	spec:truthy("no weapon drops until archetypes exist", not weaponInPool)
+	spec:truthy("the fixed pool holds no weapons", not weaponInPool)
+	spec:check("weapons have a share of drops", LootConfig.drops.weaponShare > 0)
 
 	-- ------------------------------------------------- B. drops are seeded
 
@@ -93,9 +96,15 @@ return function()
 					placement.dropRoll >= 0 and placement.dropRoll <= 1,
 					placement.dropRoll
 				)
+				-- A weapon drop is an archetype, not a catalogue entry: weapons are
+				-- generated rather than catalogued, so "is it real" means something
+				-- different for each kind.
+				local realDrop = if placement.dropKind == "weapon"
+					then WeaponStats.isArchetype(placement.dropItem)
+					else LootConfig.items[placement.dropItem] ~= nil
 				spec:truthy(
-					`{template} d{depth} e{index} drop is a real item`,
-					LootConfig.items[placement.dropItem]
+					`{template} d{depth} e{index} drop is real ({placement.dropKind})`,
+					realDrop
 				)
 				spec:check(
 					`{template} d{depth} e{index} bonus gold is in range`,
@@ -125,8 +134,8 @@ return function()
 	spec:truthy("the same seed rolls the same loot", sameLoot)
 	spec:check(
 		"loot is part of the hash",
-		string.find(FloorPlan.hash(first), first.enemies[1] and first.enemies[1].dropItem or "x")
-			~= nil
+		first.enemies[1] == nil
+			or string.find(FloorPlan.hash(first), first.enemies[1].dropItem, 1, true) ~= nil
 	)
 
 	-- ------------------------------------------- player-driven checks

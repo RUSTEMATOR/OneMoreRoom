@@ -13,6 +13,7 @@ local SPECS = {
 	"Phase05_RoomTypes",
 	"Phase06_Generation",
 	"Phase07_Loot",
+	"Phase08_Weapons",
 }
 
 -- The suite runs against the live world, and the practice skeleton actively hunts the

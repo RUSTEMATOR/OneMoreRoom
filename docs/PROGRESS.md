@@ -7,7 +7,7 @@ Remote: https://github.com/RUSTEMATOR/OneMoreRoom
 
 ## Current milestone
 
-Phase 8 — Weapons
+Phase 9 — Progression
 
 ## Awaiting you
 
@@ -123,7 +123,19 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 - [x] `Phase07_Loot` — 141 checks
 - [x] **Acceptance playtest passed: 719/719 checks across eight specs, run twice, zero errors and zero warnings in both datamodels**
 
-**Not built: weapon drops.** Dropping "a Sword" when the Sword is the only weapon is a reward that changes nothing; the archetypes and modifiers that make it a real choice are Phase 8's subject. The category exists so that becomes a data entry, and the spec asserts the pool stays weapon-free until then.
+**Not built: weapon drops.** Dropping "a Sword" when the Sword is the only weapon is a reward that changes nothing; the archetypes and modifiers that make it a real choice are Phase 8's subject. The category exists so that becomes a data entry, and the spec asserts the pool stays weapon-free until then. *(Turned on in Phase 8.)*
+
+### Phase 8 — Weapons
+
+- [x] **Greatsword** (34 dmg, 0.92 s cycle, 7.5 reach, 140° sweep) and **Daggers** (9 dmg, 0.28 s, 4.0 reach, 90° jab) alongside the Sword
+- [x] **None dominates.** Sustained damage is within 15% across all three, so the choice is commitment versus power rather than better versus worse. The spec asserts the spread stays under 25% — the moment one weapon wins on both axes there is no choice left.
+- [x] `WeaponStats` — a pure fold of archetype plus modifiers into resolved numbers. Nothing downstream knows a modifier exists.
+- [x] Five modifiers (Rusted, Heavy, Keen, Swift, Reaching), applying identically to every archetype, stacking multiplicatively, and naming the weapon they make
+- [x] Speed scales the **whole cycle**, not just windup — a "fast" weapon with a slow recovery would be a lie
+- [x] **A swing snapshots its stats**, so swapping weapons mid-swing cannot retune the swing in flight
+- [x] Weapon drops are **generated, not catalogued**: archetype plus zero to two seeded modifiers. Picking one up equips it and swaps the model.
+- [x] `Phase08_Weapons` — 158 checks
+- [x] **Acceptance playtest passed: 877/877 checks across nine specs, run twice, zero errors and zero warnings in both datamodels**
 
 #### Fixed during Phase 6
 
@@ -162,6 +174,7 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 | 2026-09-19 | 05 | 283 / 283 (six specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 06 | 578 / 578 (seven specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 07 | 719 / 719 (eight specs, ×2 runs) | 0 server, 0 client | pass |
+| 2026-09-19 | 08 | 877 / 877 (nine specs, ×2 runs) | 0 server, 0 client | pass |
 
 The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
 
@@ -169,7 +182,7 @@ The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, desp
 
 1. **You:** walk the slice and call both gates — Phase 1 (does swinging feel good?) and Phase 3 (is spawn → fight → win → leave fun?). Everything after this is built on those answers.
 2. Decide whether Shop and Event should wait for Phase 7/12 as I assumed, or get placeholder versions sooner.
-3. Phase 8 — weapons: Greatsword and Daggers alongside the Sword, plus a modifier system so "Rusted Dagger, +15% speed, −10% damage" is a data row. Weapon drops turn on with it.
+3. Phase 9 — progression: Soul Shards become spendable on permanent upgrades, and the die → lobby → buy → run loop closes.
 
 ## Where to go in-game
 

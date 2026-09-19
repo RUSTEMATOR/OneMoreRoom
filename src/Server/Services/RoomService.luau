@@ -109,7 +109,9 @@ local function spawnEncounter(room: Room)
 		local worldCFrame = origin * CFrame.new(placement.offset + Vector3.new(0, 3, 0))
 		local enemy = EnemyService.spawn(placement.kind, worldCFrame, room.model, {
 			roll = placement.dropRoll,
+			kind = placement.dropKind,
 			item = placement.dropItem,
+			modifiers = placement.dropModifiers,
 			gold = placement.bonusGold,
 		})
 		if enemy ~= nil then

@@ -28,13 +28,21 @@ Stamina regenerates over time and gates dodge spam.
 
 Three archetypes, then modifiers. Three weapons plus modifiers produce dozens of variants without dozens of implementations.
 
-| | Damage | Range | Speed |
-|---|---|---|---|
-| Sword | medium | short | medium |
-| Greatsword | high | medium | low |
-| Daggers | low | very short | very high |
+| | Damage | Cycle | Reach | Arc | Sustained |
+|---|---|---|---|---|---|
+| Sword | 18 | 0.52 s | 5.5 | 120° | 34.6 /s |
+| Greatsword | 34 | 0.92 s | 7.5 | 140° | 37.0 /s |
+| Daggers | 9 | 0.28 s | 4.0 | 90° | 32.1 /s |
 
-A modifier is a data row: *Rusted Dagger — +15% attack speed, −10% damage*. It applies to any archetype.
+**None of them dominates**, and that is the point. Sustained damage sits within 15% across all three, so the choice is about commitment rather than power: the Greatsword kills a Skeleton in two swings but locks you in for nearly a second, the Daggers take seven but leave you free three times as often. The spec asserts that spread stays under 25%, because the moment one weapon wins on both axes there is no choice left.
+
+A modifier is a data row — *Rusted Daggers: +15% attack speed, −10% damage* — and applies to any archetype. `Shared/WeaponStats.luau` folds archetype plus modifiers into resolved numbers, and nothing downstream knows a modifier exists: `CombatService` reads a resolved table and cannot tell a plain Sword from a Rusted Reaching Greatsword.
+
+Speed scales the **whole cycle**, not just the windup. Scaling one phase would let a "fast" weapon keep a slow recovery, which is the opposite of what the word means.
+
+**A swing snapshots its stats when it starts.** Picking up a Greatsword mid-swing cannot retune the swing already in flight.
+
+Weapon drops are **generated, not catalogued**: a drop picks an archetype and zero to two seeded modifiers. That is why weapons are absent from `LootConfig`'s fixed pool — there is nothing to catalogue.
 
 ## Enemies
 

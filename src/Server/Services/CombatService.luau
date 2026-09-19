@@ -16,6 +16,7 @@ local RunService = game:GetService("RunService")
 local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local Net = require(ReplicatedStorage.Shared.Net)
+local WeaponStats = require(ReplicatedStorage.Shared.WeaponStats)
 local InventoryService = require(script.Parent.InventoryService)
 local PlayerService = require(script.Parent.PlayerService)
 local WeaponBuilder = require(script.Parent.Parent.Combat.WeaponBuilder)
@@ -33,6 +34,9 @@ export type CombatState = {
 	swingId: number,
 	swingGeneration: number,
 	swingHits: { [Instance]: boolean },
+	-- Resolved at the moment the swing starts and used for its whole duration, so
+	-- picking up a new weapon mid-swing cannot retune the swing already in flight.
+	swingStats: WeaponStats.Resolved,
 
 	iframeUntil: number,
 	dodgeReadyAt: number,
@@ -71,6 +75,7 @@ local function newCombat(): CombatState
 		swingId = 0,
 		swingGeneration = -1,
 		swingHits = {},
+		swingStats = WeaponStats.resolve(CombatConfig.defaultWeapon, {}),
 		iframeUntil = 0,
 		dodgeReadyAt = 0,
 		dodgeEndsAt = 0,
@@ -135,31 +140,46 @@ local function swingOrigin(rootCFrame: CFrame): CFrame
 	return CFrame.lookAt(rootCFrame.Position, rootCFrame.Position + flat)
 end
 
-function CombatService.swingVolume(rootCFrame: CFrame, weaponId: string): (CFrame, Vector3)
-	local weapon = CombatConfig.weapons[weaponId]
+-- Takes either an archetype id or an already-resolved weapon, so pure geometry
+-- checks stay callable without building an inventory.
+local function statsFor(weapon: string | WeaponStats.Resolved): WeaponStats.Resolved
+	if typeof(weapon) == "string" then
+		return WeaponStats.resolve(weapon, {})
+	end
+	return weapon
+end
+
+function CombatService.swingVolume(
+	rootCFrame: CFrame,
+	weapon: string | WeaponStats.Resolved
+): (CFrame, Vector3)
+	local stats = statsFor(weapon)
 	local origin = swingOrigin(rootCFrame)
-	return origin * CFrame.new(0, 0, -weapon.arcForwardOffset), weapon.arcSize
+	return origin * CFrame.new(0, 0, -stats.arcForwardOffset), stats.arcSize
 end
 
 -- GetPartBoundsInBox returns a box; this trims the corners to a frontal cone. Without
 -- it you can hit things beside you.
-function CombatService.isInArc(rootCFrame: CFrame, point: Vector3, weaponId: string): boolean
-	local weapon = CombatConfig.weapons[weaponId]
+function CombatService.isInArc(
+	rootCFrame: CFrame,
+	point: Vector3,
+	weapon: string | WeaponStats.Resolved
+): boolean
+	local stats = statsFor(weapon)
 	local origin = swingOrigin(rootCFrame)
 	local delta = point - origin.Position
 
-	local reach = weapon.arcForwardOffset + weapon.arcSize.Z / 2
 	local flatDelta = Vector3.new(delta.X, 0, delta.Z)
-	if flatDelta.Magnitude > reach then
+	if flatDelta.Magnitude > stats.reach then
 		return false
 	end
-	if math.abs(delta.Y) > weapon.arcSize.Y / 2 then
+	if math.abs(delta.Y) > stats.arcSize.Y / 2 then
 		return false
 	end
 	if flatDelta.Magnitude < 1e-4 then
 		return true
 	end
-	return flatDelta.Unit:Dot(origin.LookVector) >= weapon.arcHalfAngleCos
+	return flatDelta.Unit:Dot(origin.LookVector) >= stats.arcHalfAngleCos
 end
 
 -- ------------------------------------------------------------------- damage
@@ -196,8 +216,8 @@ local function queryArc(player: Player, combat: CombatState)
 		return
 	end
 
-	local weapon = CombatConfig.weapons[combat.weapon]
-	local volumeCFrame, volumeSize = CombatService.swingVolume(rootPart.CFrame, combat.weapon)
+	local weapon = combat.swingStats
+	local volumeCFrame, volumeSize = CombatService.swingVolume(rootPart.CFrame, weapon)
 
 	local params = OverlapParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -222,7 +242,7 @@ local function queryArc(player: Player, combat: CombatState)
 		if combat.swingHits[target.model] then
 			continue
 		end
-		if not CombatService.isInArc(rootPart.CFrame, part.Position, combat.weapon) then
+		if not CombatService.isInArc(rootPart.CFrame, part.Position, weapon) then
 			continue
 		end
 
@@ -237,7 +257,7 @@ local function queryArc(player: Player, combat: CombatState)
 
 		local dealt, reason = target.applyDamage(outgoing, {
 			source = player,
-			weapon = combat.weapon,
+			weapon = combat.swingStats.archetype,
 			position = part.Position,
 		})
 		if dealt > 0 and reason == nil then
@@ -256,7 +276,7 @@ local function queryArc(player: Player, combat: CombatState)
 end
 
 local function enterActive(player: Player, combat: CombatState, now: number)
-	local weapon = CombatConfig.weapons[combat.weapon]
+	local weapon = combat.swingStats
 	combat.phase = "Active"
 	combat.phaseEndsAt = now + weapon.active
 	table.clear(combat.swingHits)
@@ -266,7 +286,7 @@ local function enterActive(player: Player, combat: CombatState, now: number)
 end
 
 local function enterRecovery(combat: CombatState, now: number)
-	local weapon = CombatConfig.weapons[combat.weapon]
+	local weapon = combat.swingStats
 	combat.phase = "Recovery"
 	combat.phaseEndsAt = now + weapon.recovery
 	combat.attackReadyAt = combat.phaseEndsAt
@@ -393,7 +413,11 @@ function CombatService.tryAttack(player: Player): (boolean, string?)
 		return false, "cooldown"
 	end
 
-	local weapon = CombatConfig.weapons[combat.weapon]
+	-- Resolve once, here, and use it for the whole swing.
+	local weapon = InventoryService.weaponStats(player)
+	combat.swingStats = weapon
+	combat.weapon = weapon.archetype
+
 	if weapon.staminaCost > 0 and not PlayerService.spendStamina(player, weapon.staminaCost) then
 		return false, "stamina"
 	end
@@ -410,7 +434,7 @@ function CombatService.tryAttack(player: Player): (boolean, string?)
 	broadcast({
 		kind = "SwingStarted",
 		actor = player,
-		weapon = combat.weapon,
+		weapon = weapon.archetype,
 		windup = weapon.windup,
 		active = weapon.active,
 		recovery = weapon.recovery,
@@ -546,7 +570,7 @@ local function onPlayerAdded(player: Player)
 			resetCombat(combat)
 		end
 		task.spawn(function()
-			WeaponBuilder.equip(character, CombatConfig.defaultWeapon)
+			WeaponBuilder.equip(character, InventoryService.equippedWeapon(player).archetype)
 			registerPlayerDamageable(player, character)
 		end)
 	end)
@@ -562,7 +586,7 @@ local function onPlayerAdded(player: Player)
 	local existing = player.Character
 	if existing ~= nil then
 		task.spawn(function()
-			WeaponBuilder.equip(existing, CombatConfig.defaultWeapon)
+			WeaponBuilder.equip(existing, InventoryService.equippedWeapon(player).archetype)
 			registerPlayerDamageable(player, existing)
 		end)
 	end
@@ -603,6 +627,15 @@ function CombatService.Start()
 
 	PlayerService.onSpawned.Event:Connect(function(player: Player)
 		broadcast({ kind = "Respawned", actor = player })
+	end)
+
+	-- Picking up a Greatsword has to look like picking up a Greatsword.
+	InventoryService.onWeaponEquipped.Event:Connect(function(player: Player, archetype: string)
+		local state = PlayerService.get(player)
+		local character = if state ~= nil then state.character else nil
+		if character ~= nil and character.Parent ~= nil then
+			WeaponBuilder.equip(character, archetype)
+		end
 	end)
 
 	RunService.Heartbeat:Connect(step)

@@ -49,7 +49,7 @@ export type Enemy = {
 	generation: number,
 	-- Pre-rolled by FloorPlan so a drop does not depend on kill order. Whether it
 	-- actually lands is decided here, against the live party loot bonus.
-	drop: { roll: number, item: string, gold: number }?,
+	drop: { roll: number, kind: string, item: string, modifiers: { string }, gold: number }?,
 }
 
 local enemies: { [number]: Enemy } = {}
@@ -139,7 +139,9 @@ local function die(enemy: Enemy, killer: Player?)
 				drop.item,
 				drop.gold,
 				CFrame.new(enemy.root.Position),
-				enemy.model.Parent or workspace
+				enemy.model.Parent or workspace,
+				drop.kind,
+				drop.modifiers
 			)
 		end
 	end
@@ -204,7 +206,13 @@ function EnemyService.spawn(
 	kind: string,
 	cframe: CFrame,
 	parent: Instance?,
-	drop: { roll: number, item: string, gold: number }?
+	drop: {
+		roll: number,
+		kind: string,
+		item: string,
+		modifiers: { string },
+		gold: number,
+	}?
 ): Enemy?
 	local enemySpec = spec(kind)
 	if enemySpec == nil then

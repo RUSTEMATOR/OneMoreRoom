@@ -17,6 +17,7 @@ local RunService = game:GetService("RunService")
 
 local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local LootConfig = require(ReplicatedStorage.Shared.LootConfig)
+local WeaponStats = require(ReplicatedStorage.Shared.WeaponStats)
 local PlayerService = require(script.Parent.PlayerService)
 local RunSessionService = require(script.Parent.RunSessionService)
 local SaveService = require(script.Parent.SaveService)
@@ -26,17 +27,27 @@ local InventoryService = {}
 export type Pickup = {
 	id: number,
 	part: BasePart,
+	-- For an item drop this is a LootConfig id; for a weapon it is an archetype.
 	item: string,
+	kind: string,
+	modifiers: { string },
 	gold: number,
 	taken: boolean,
 }
 
+export type EquippedWeapon = {
+	archetype: string,
+	modifiers: { string },
+}
+
 local held: { [Player]: { string } } = {}
+local weapons: { [Player]: EquippedWeapon } = {}
 local pickups: { [number]: Pickup } = {}
 local nextPickupId = 0
 
 InventoryService.onPickedUp = Instance.new("BindableEvent")
 InventoryService.onShardsAwarded = Instance.new("BindableEvent")
+InventoryService.onWeaponEquipped = Instance.new("BindableEvent")
 
 -- ------------------------------------------------------------------ holdings
 
@@ -56,6 +67,38 @@ end
 
 function InventoryService.has(player: Player, itemId: string): boolean
 	return InventoryService.count(player, itemId) > 0
+end
+
+-- ------------------------------------------------------------------- weapons
+
+-- Everyone starts with a plain Sword. Returning the default rather than nil means no
+-- caller has to handle "unarmed", which is not a state this game has.
+function InventoryService.equippedWeapon(player: Player): EquippedWeapon
+	return weapons[player] or { archetype = CombatConfig.defaultWeapon, modifiers = {} }
+end
+
+function InventoryService.equipWeapon(
+	player: Player,
+	archetype: string,
+	modifiers: { string }?
+): boolean
+	if not WeaponStats.isArchetype(archetype) then
+		return false
+	end
+	local kept: { string } = {}
+	for _, id in modifiers or {} do
+		if WeaponStats.isModifier(id) then
+			table.insert(kept, id)
+		end
+	end
+	weapons[player] = { archetype = archetype, modifiers = kept }
+	InventoryService.onWeaponEquipped:Fire(player, archetype, kept)
+	return true
+end
+
+function InventoryService.weaponStats(player: Player): WeaponStats.Resolved
+	local equipped = InventoryService.equippedWeapon(player)
+	return WeaponStats.resolve(equipped.archetype, equipped.modifiers)
 end
 
 -- ----------------------------------------------------------------- modifiers
@@ -168,26 +211,42 @@ function InventoryService.clearRun()
 		end
 	end
 	table.clear(held)
+	-- The weapon goes with it: you start every run with a plain Sword.
+	table.clear(weapons)
 end
 
 -- ------------------------------------------------------------------- pickups
 
+-- `kind` is "item" for a catalogued relic or armour piece, or "weapon" for a
+-- generated archetype plus modifiers. A weapon has no catalogue entry, so its label
+-- and colour are derived rather than looked up.
 function InventoryService.spawnPickup(
 	itemId: string,
 	gold: number,
 	cframe: CFrame,
-	parent: Instance
+	parent: Instance,
+	kind: string?,
+	modifiers: { string }?
 )
+	local dropKind = kind or "item"
 	local item = LootConfig.items[itemId]
-	if item == nil then
+	if dropKind == "item" and item == nil then
 		return
 	end
+	if dropKind == "weapon" and not WeaponStats.isArchetype(itemId) then
+		return
+	end
+
+	local label = if dropKind == "weapon"
+		then WeaponStats.displayName(itemId, modifiers)
+		else (item :: any).displayName
+	local category = if dropKind == "weapon" then "Weapon" else (item :: any).category
 
 	local spec = LootConfig.pickup
 	local part = Instance.new("Part")
 	part.Name = `Loot_{itemId}`
 	part.Size = spec.size
-	part.Color = LootConfig.colorFor(item.category)
+	part.Color = LootConfig.colorFor(category)
 	part.Material = Enum.Material.Neon
 	part.Anchored = true
 	part.CanCollide = false
@@ -195,11 +254,11 @@ function InventoryService.spawnPickup(
 	part.CFrame = cframe * CFrame.new(0, spec.height, 0)
 	part.Parent = parent
 
-	local label = Instance.new("BillboardGui")
-	label.Size = UDim2.fromScale(7, 1.2)
-	label.StudsOffsetWorldSpace = Vector3.new(0, 1.6, 0)
-	label.AlwaysOnTop = true
-	label.Parent = part
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.fromScale(7, 1.2)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, 1.6, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = part
 
 	local text = Instance.new("TextLabel")
 	text.Size = UDim2.fromScale(1, 1)
@@ -208,14 +267,16 @@ function InventoryService.spawnPickup(
 	text.TextScaled = true
 	text.TextColor3 = part.Color
 	text.TextStrokeTransparency = 0.4
-	text.Text = item.displayName
-	text.Parent = label
+	text.Text = label
+	text.Parent = billboard
 
 	nextPickupId += 1
 	pickups[nextPickupId] = {
 		id = nextPickupId,
 		part = part,
 		item = itemId,
+		kind = dropKind,
+		modifiers = modifiers or {},
 		gold = gold,
 		taken = false,
 	}
@@ -266,9 +327,13 @@ local function stepPickups(dt: number)
 			end
 
 			pickup.taken = true
-			InventoryService.grant(state.player, pickup.item)
+			if pickup.kind == "weapon" then
+				InventoryService.equipWeapon(state.player, pickup.item, pickup.modifiers)
+			else
+				InventoryService.grant(state.player, pickup.item)
+			end
 			RunSessionService.addGold(pickup.gold)
-			InventoryService.onPickedUp:Fire(state.player, pickup.item, pickup.gold)
+			InventoryService.onPickedUp:Fire(state.player, pickup.item, pickup.gold, pickup.kind)
 			pickup.part:Destroy()
 			pickups[id] = nil
 			break
@@ -304,6 +369,7 @@ end
 
 function InventoryService.Init()
 	table.clear(held)
+	table.clear(weapons)
 	table.clear(pickups)
 	nextPickupId = 0
 end
@@ -313,6 +379,7 @@ function InventoryService.Start()
 
 	Players.PlayerRemoving:Connect(function(player)
 		held[player] = nil
+		weapons[player] = nil
 	end)
 
 	-- Equipment is run-scoped, so a fresh character starts clean.

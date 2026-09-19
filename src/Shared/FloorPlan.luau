@@ -15,6 +15,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EnemyConfig = require(ReplicatedStorage.Shared.EnemyConfig)
+local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local FloorConfig = require(ReplicatedStorage.Shared.FloorConfig)
 local LootConfig = require(ReplicatedStorage.Shared.LootConfig)
 local RoomConfig = require(ReplicatedStorage.Shared.RoomConfig)
@@ -34,7 +35,11 @@ export type EnemyPlacement = {
 	-- since inventory is itself determined by seed and path, the whole thing is
 	-- still reproducible.
 	dropRoll: number,
+	-- "item" for a fixed relic or armour piece, "weapon" for a generated archetype
+	-- plus modifiers. Both are decided by the seed; only WHETHER it drops is live.
+	dropKind: string,
 	dropItem: string,
+	dropModifiers: { string },
 	bonusGold: number,
 }
 
@@ -154,11 +159,36 @@ local function placeEnemies(seed: number, depth: number, template: string): { En
 		end
 
 		local lootRng = Rng.new(seed, "loot", depth, template, index)
+		local roll = quantize(lootRng:number())
+
+		-- Draw every value unconditionally, in a fixed order, even when this drop
+		-- turns out to be an item. Branching the DRAWS would make the stream depend
+		-- on its own earlier results, and two runs could then desync.
+		local isWeapon = lootRng:chance(LootConfig.drops.weaponShare)
+		local itemId = LootConfig.dropPool[lootRng:int(1, #LootConfig.dropPool)]
+		local archetype = CombatConfig.archetypePool[lootRng:int(1, #CombatConfig.archetypePool)]
+
+		local modifiers: { string } = {}
+		local wantsFirst = lootRng:chance(LootConfig.drops.modifierChance)
+		local firstModifier = CombatConfig.modifierPool[lootRng:int(1, #CombatConfig.modifierPool)]
+		local wantsSecond = lootRng:chance(LootConfig.drops.secondModifierChance)
+		local secondStep = lootRng:int(1, #CombatConfig.modifierPool - 1)
+		if isWeapon and wantsFirst then
+			table.insert(modifiers, firstModifier)
+			if wantsSecond then
+				local firstIndex = table.find(CombatConfig.modifierPool, firstModifier) or 1
+				local secondIndex = ((firstIndex - 1 + secondStep) % #CombatConfig.modifierPool) + 1
+				table.insert(modifiers, CombatConfig.modifierPool[secondIndex])
+			end
+		end
+
 		table.insert(placements, {
 			kind = encounter.kind,
 			offset = chosen :: Vector3,
-			dropRoll = quantize(lootRng:number()),
-			dropItem = LootConfig.dropPool[lootRng:int(1, #LootConfig.dropPool)],
+			dropRoll = roll,
+			dropKind = if isWeapon then "weapon" else "item",
+			dropItem = if isWeapon then archetype else itemId,
+			dropModifiers = modifiers,
 			bonusGold = lootRng:int(LootConfig.drops.bonusGoldMin, LootConfig.drops.bonusGoldMax),
 		})
 	end
@@ -216,7 +246,8 @@ function FloorPlan.hash(plan: Plan): string
 		table.insert(
 			parts,
 			`e={placement.kind}:{quantize(placement.offset.X)}:{quantize(placement.offset.Z)}`
-				.. `:{placement.dropRoll}:{placement.dropItem}:{placement.bonusGold}`
+				.. `:{placement.dropRoll}:{placement.dropKind}:{placement.dropItem}`
+				.. `:{table.concat(placement.dropModifiers, "+")}:{placement.bonusGold}`
 		)
 	end
 

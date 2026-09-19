@@ -1,11 +1,12 @@
 --!strict
 -- Loot tables and equipment definitions.
 --
--- Three categories, as the design calls for: Weapon, Armor, Relic. Only Armor and
--- Relic are populated here. Weapon drops need the archetypes and modifiers that are
--- Phase 8's whole subject, and dropping "a Sword" when a Sword is the only weapon in
--- the game would be a reward that changes nothing. The category exists so Phase 8 is
--- a data entry.
+-- Three categories, as the design calls for: Weapon, Armor, Relic.
+--
+-- Relics and armour are a fixed catalogue and live here. **Weapons are not catalogued
+-- at all** — a weapon drop is generated from an archetype plus seeded modifiers, which
+-- is the whole point of the modifier system: three weapons, dozens of variants. Their
+-- data is in `CombatConfig.archetypePool` and `CombatConfig.modifierPool`.
 --
 -- Every effect is a plain named field. Nothing here knows how the effect is applied;
 -- InventoryService aggregates, and combat reads the aggregate.
@@ -122,6 +123,13 @@ LootConfig.drops = {
 	-- Gold carried by a dropped stack, on top of the flat per-kill award.
 	bonusGoldMin = 4,
 	bonusGoldMax = 14,
+
+	-- Weapons turned on with Phase 8's archetypes. A weapon drop is GENERATED
+	-- (archetype plus seeded modifiers) rather than pulled from a catalogue, which
+	-- is the point of the modifier system: three weapons, dozens of variants.
+	weaponShare = 0.35,
+	modifierChance = 0.6,
+	secondModifierChance = 0.25,
 }
 
 -- Permanent currency. Awarded when a run ends, scaled by how far it got, so a deep
