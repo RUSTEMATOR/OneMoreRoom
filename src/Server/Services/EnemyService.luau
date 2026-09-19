@@ -18,9 +18,9 @@ local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local EnemyConfig = require(ReplicatedStorage.Shared.EnemyConfig)
 local CombatService = require(script.Parent.CombatService)
 local EnemyBuilder = require(script.Parent.Parent.Combat.EnemyBuilder)
-local FloorService = require(script.Parent.FloorService)
 local PlayerService = require(script.Parent.PlayerService)
 local RunSessionService = require(script.Parent.RunSessionService)
+local WorldFolders = require(script.Parent.Parent.World.WorldFolders)
 
 local EnemyService = {}
 
@@ -210,7 +210,7 @@ function EnemyService.spawn(kind: string, cframe: CFrame, parent: Instance?): En
 		generation = 0,
 	}
 
-	model.Parent = parent or FloorService.generatedFolder()
+	model.Parent = parent or WorldFolders.generated()
 	model:PivotTo(cframe)
 	enemies[enemy.id] = enemy
 
@@ -382,7 +382,7 @@ local function spawnPractice()
 	if not EnemyConfig.practice.enabled then
 		return
 	end
-	local static = FloorService.staticFolder()
+	local static = WorldFolders.static()
 	local folder = static:FindFirstChild("Practice")
 	if folder == nil then
 		local made = Instance.new("Folder")
@@ -438,7 +438,7 @@ function EnemyService.setPracticeEnabled(enabled: boolean)
 		return
 	end
 
-	local static = FloorService.staticFolder()
+	local static = WorldFolders.static()
 	local folder = static:FindFirstChild("Practice")
 	if folder == nil then
 		return

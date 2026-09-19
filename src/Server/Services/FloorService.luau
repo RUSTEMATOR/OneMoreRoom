@@ -1,50 +1,184 @@
 --!strict
--- Owns floor generation and the Generated/Static split. Everything this service builds
--- goes under Workspace/Generated and is cleared at the start of every run; anything
--- hand-authored lives under Workspace/Static and is never touched here.
+-- The run: which floor you are on, which room that is, and when you advance.
+--
+-- The division of labour with RoomService is the seam Phase 6 needs. RoomService owns
+-- what happens INSIDE a room — sealing, the encounter, the doors. FloorService owns
+-- WHICH room exists and when the next one loads. Procedural generation replaces only
+-- the "which" half.
+--
+-- Folder ownership lives in WorldFolders rather than here, because RoomService needs
+-- somewhere to parent a room and FloorService needs RoomService to make one — as a
+-- service-to-service cycle that would be a hard boot error.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
+local FloorConfig = require(ReplicatedStorage.Shared.FloorConfig)
 local Rng = require(ReplicatedStorage.Shared.Rng)
+local PlayerService = require(script.Parent.PlayerService)
+local RoomService = require(script.Parent.RoomService)
+local RunSessionService = require(script.Parent.RunSessionService)
+local WorldFolders = require(script.Parent.Parent.World.WorldFolders)
 
 local FloorService = {}
 
-local generated: Folder
-local static: Folder
+local currentRoom: RoomService.Room? = nil
+local advancing = false
 
-local function ensureFolder(name: string): Folder
-	local existing = workspace:FindFirstChild(name)
-	if existing and existing:IsA("Folder") then
-		return existing
-	end
-	local folder = Instance.new("Folder")
-	folder.Name = name
-	folder.Parent = workspace
-	return folder
-end
+FloorService.onFloorLoaded = Instance.new("BindableEvent")
+FloorService.onFloorCleared = Instance.new("BindableEvent")
+FloorService.onRunEnded = Instance.new("BindableEvent")
 
-function FloorService.Init()
-	generated = ensureFolder("Generated")
-	static = ensureFolder("Static")
-end
-
-function FloorService.clear()
-	generated:ClearAllChildren()
-end
+-- ------------------------------------------------------------------ folders
 
 function FloorService.generatedFolder(): Folder
-	return generated
+	return WorldFolders.generated()
 end
 
 function FloorService.staticFolder(): Folder
-	return static
+	return WorldFolders.static()
 end
 
--- Phase 4 fills this in. The signature is fixed now because the seeded-layout golden
--- hash spec is written against it.
-function FloorService.buildFloor(seed: number, depth: number): Rng.Rng
+function FloorService.clear()
+	if currentRoom ~= nil then
+		RoomService.destroy(currentRoom)
+		currentRoom = nil
+	end
+	WorldFolders.generated():ClearAllChildren()
+end
+
+-- ------------------------------------------------------------------- layout
+
+-- Each floor sits well clear of the last, so a lingering enemy or stray physics
+-- object from the previous one cannot reach across. Deterministic from the depth, so
+-- Phase 6's seeded generation does not have to track positions.
+function FloorService.originForFloor(depth: number): CFrame
+	local layout = FloorConfig.layout
+	return CFrame.new(layout.origin + Vector3.new(0, 0, -layout.floorSpacing * (depth - 1)))
+end
+
+-- ---------------------------------------------------------------- accessors
+
+function FloorService.currentRoom(): RoomService.Room?
+	return currentRoom
+end
+
+function FloorService.currentFloor(): number
+	local run = RunSessionService.get()
+	return if run ~= nil then run.floor else 0
+end
+
+function FloorService.isRunActive(): boolean
+	local run = RunSessionService.get()
+	return run ~= nil and run.active
+end
+
+-- ------------------------------------------------------------------ loading
+
+local function teleportPlayersTo(room: RoomService.Room)
+	local target = RoomService.entranceCFrame(room, FloorConfig.layout.entranceOffset)
+	for _, state in PlayerService.all() do
+		local character = state.character
+		if character ~= nil and character.Parent ~= nil then
+			-- A deliberate teleport, not a per-frame correction: the owning client
+			-- accepts a large one-shot CFrame change without fighting it.
+			character:PivotTo(target)
+		end
+	end
+end
+
+function FloorService.loadFloor(depth: number): RoomService.Room?
 	FloorService.clear()
+
+	local template = FloorConfig.templateForFloor(depth)
+	local room =
+		RoomService.create(template, FloorService.originForFloor(depth), WorldFolders.generated())
+	if room == nil then
+		return nil
+	end
+
+	currentRoom = room
+	local run = RunSessionService.get()
+	if run ~= nil then
+		run.floor = depth
+	end
+
+	teleportPlayersTo(room)
+	FloorService.onFloorLoaded:Fire(depth, room)
+	return room
+end
+
+-- -------------------------------------------------------------------- run
+
+function FloorService.beginRun(seed: number): RoomService.Room?
+	RunSessionService.begin(seed)
+	advancing = false
+	return FloorService.loadFloor(FloorConfig.run.firstFloor)
+end
+
+function FloorService.endRun()
+	FloorService.clear()
+	RunSessionService.finish()
+	advancing = false
+	FloorService.onRunEnded:Fire()
+end
+
+function FloorService.advance(): RoomService.Room?
+	if not FloorService.isRunActive() then
+		return nil
+	end
+	local next = FloorService.currentFloor() + 1
+	return FloorService.loadFloor(next)
+end
+
+-- Phase 6 replaces this with a seeded graph. The signature is already the one the
+-- golden-hash reproducibility spec will assert against.
+function FloorService.buildFloor(seed: number, depth: number): Rng.Rng
 	return Rng.new(seed, "floor", depth)
+end
+
+-- --------------------------------------------------------------------- tick
+
+local function step()
+	if advancing or not FloorService.isRunActive() then
+		return
+	end
+	local room = currentRoom
+	if room == nil or room.phase ~= "Cleared" then
+		return
+	end
+
+	local layout = FloorConfig.layout
+	local leaving =
+		RoomService.playersPastExit(room, layout.exitTriggerDepth, layout.exitTriggerWidth)
+	if #leaving == 0 then
+		return
+	end
+
+	-- Latch: loadFloor destroys the room and teleports players, and without this the
+	-- same frame's leftover state could advance twice.
+	advancing = true
+	local cleared = FloorService.currentFloor()
+	RunSessionService.addGold(FloorConfig.run.clearBonusGold)
+	FloorService.onFloorCleared:Fire(cleared)
+
+	task.spawn(function()
+		FloorService.advance()
+		advancing = false
+	end)
+end
+
+function FloorService.Init()
+	currentRoom = nil
+	advancing = false
+	-- Created eagerly so they exist in the Explorer at boot and Phase00_Boot can
+	-- assert on them.
+	WorldFolders.generated()
+	WorldFolders.static()
+end
+
+function FloorService.Start()
+	RunService.Heartbeat:Connect(step)
 end
 
 return FloorService

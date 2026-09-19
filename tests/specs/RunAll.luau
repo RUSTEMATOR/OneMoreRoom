@@ -9,6 +9,7 @@ local SPECS = {
 	"Phase01_Combat",
 	"Phase02_Skeleton",
 	"Phase03_Room",
+	"Phase04_Floor",
 }
 
 -- The suite runs against the live world, and the practice skeleton actively hunts the

@@ -15,7 +15,7 @@ local TweenService = game:GetService("TweenService")
 local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local CombatService = require(script.Parent.CombatService)
-local FloorService = require(script.Parent.FloorService)
+local WorldFolders = require(script.Parent.Parent.World.WorldFolders)
 
 local TrainingDummyService = {}
 
@@ -171,7 +171,7 @@ function TrainingDummyService.Start()
 		return
 	end
 
-	local static = FloorService.staticFolder()
+	local static = WorldFolders.static()
 
 	-- Destroy any survivor first, so a hot resync cannot duplicate the dummy.
 	local stale = static:FindFirstChild(config.name)

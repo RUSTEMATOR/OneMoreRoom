@@ -7,7 +7,7 @@ Remote: https://github.com/RUSTEMATOR/OneMoreRoom
 
 ## Current milestone
 
-Phase 4 — Floor system
+Phase 5 — Room types
 
 ## Awaiting you
 
@@ -75,6 +75,16 @@ Phase 2 proceeds on the assumption the gate passes. If it does not, Phase 2's en
 - [x] `Phase03_Room` — 37 checks covering geometry, sealing, the encounter, clearing, and reset
 - [x] **Acceptance playtest passed: 173/173 checks across four specs, run twice for stability, zero errors and zero warnings in both datamodels**
 
+### Phase 4 — Floor system
+
+- [x] `WorldFolders` — folder ownership moved out of `FloorService`, breaking a real cycle: `RoomService` needs somewhere to parent a room and `FloorService` needs `RoomService` to make one
+- [x] `FloorConfig` — the run's fixed template sequence, floor spacing, and the clear bonus
+- [x] `FloorService` rewritten as the run orchestrator: `beginRun`, `loadFloor`, `advance`, `endRun`, deterministic per-floor origins, and a Heartbeat watching for the player leaving a cleared room
+- [x] `RoomService.playersPastExit` / `entranceCFrame` — the exit trigger and the spawn point a floor loads you into
+- [x] Floor number is authoritative in `RunSessionService`; gold and seed carry across floors
+- [x] `Phase04_Floor` — 38 checks, including returning the tester to spawn so the manual pass is not left stranded
+- [x] **Acceptance playtest passed: 211/211 checks across five specs, run twice, zero errors and zero warnings in both datamodels**
+
 #### Fixed during Phase 3
 
 - **Practice skeleton respawn fired on any enemy death.** `onKilled` is a service-wide event and the listener did not filter by id, so killing any skeleton respawned the practice one on top of the live one, compounding each time. Found by auditing against the newly installed `roblox-engineer` skill's connection-leak checklist. `onKilled` now leads with the enemy id, and Phase 2 regresses it.
@@ -102,13 +112,14 @@ Phase 2 proceeds on the assumption the gate passes. If it does not, Phase 2's en
 | 2026-09-19 | 01 | 94 / 94 (both specs) | 0 server, 0 client | pass |
 | 2026-09-19 | 02 | 136 / 136 (three specs) | 0 server, 0 client | pass |
 | 2026-09-19 | 03 | 173 / 173 (four specs, ×2 runs) | 0 server, 0 client | pass |
+| 2026-09-19 | 04 | 211 / 211 (five specs, ×2 runs) | 0 server, 0 client | pass |
 
-The suite now spends ~35 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
+The suite now spends ~45 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
 
 ## Next
 
 1. **You:** walk the slice and call both gates — Phase 1 (does swinging feel good?) and Phase 3 (is spawn → fight → win → leave fun?). Everything after this is built on those answers.
-2. Phase 4 — `FloorService`: generate a floor, load its room, track completion, advance the player. Fixed sequence, no procedural generation yet.
+2. Phase 5 — room types: Elite, Treasure, Healing, Shop, Event, all data-driven from `RoomConfig.templates`.
 
 ## Where to go in-game
 

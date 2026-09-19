@@ -11,12 +11,12 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local ORDER = {
 	"PlayerService",
 	"SaveService",
-	"FloorService",
-	"CombatService",
-	"TrainingDummyService",
 	"RunSessionService",
+	"CombatService",
 	"EnemyService",
+	"TrainingDummyService",
 	"RoomService",
+	"FloorService",
 }
 
 type Service = {

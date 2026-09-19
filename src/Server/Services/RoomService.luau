@@ -16,9 +16,9 @@ local TweenService = game:GetService("TweenService")
 local EnemyConfig = require(ReplicatedStorage.Shared.EnemyConfig)
 local RoomConfig = require(ReplicatedStorage.Shared.RoomConfig)
 local EnemyService = require(script.Parent.EnemyService)
-local FloorService = require(script.Parent.FloorService)
 local PlayerService = require(script.Parent.PlayerService)
 local RoomBuilder = require(script.Parent.Parent.World.RoomBuilder)
+local WorldFolders = require(script.Parent.Parent.World.WorldFolders)
 
 local RoomService = {}
 
@@ -142,6 +142,44 @@ end
 
 RoomService.playersInside = playersInside
 
+-- The volume just beyond the exit doorway. A cleared room is left by walking through
+-- it, and FloorService watches this to know when to advance.
+local function playersPastExit(room: Room, depth: number, width: number): { Player }
+	local roomSpec = spec(room.template)
+	local origin = room.model:GetPivot()
+	local edge = roomSpec.interior.Z / 2 + roomSpec.wallThickness
+	local centre = origin * CFrame.new(0, roomSpec.interior.Y / 2, -(edge + depth / 2))
+
+	local found = {}
+	for _, state in PlayerService.all() do
+		if not state.alive then
+			continue
+		end
+		local root = state.rootPart
+		if root == nil or root.Parent == nil then
+			continue
+		end
+		local localPoint = centre:PointToObjectSpace(root.Position)
+		if
+			math.abs(localPoint.X) <= width / 2
+			and math.abs(localPoint.Y) <= roomSpec.interior.Y / 2
+			and math.abs(localPoint.Z) <= depth / 2
+		then
+			table.insert(found, state.player)
+		end
+	end
+	return found
+end
+
+RoomService.playersPastExit = playersPastExit
+
+-- Where a player should land when a floor loads them into this room.
+function RoomService.entranceCFrame(room: Room, offset: Vector3): CFrame
+	local origin = room.model:GetPivot()
+	-- Facing the exit, which is -Z in room space.
+	return origin * CFrame.new(offset) * CFrame.Angles(0, math.pi, 0)
+end
+
 -- ------------------------------------------------------------------ resets
 
 function RoomService.reset(room: Room)
@@ -234,7 +272,7 @@ function RoomService.create(template: string, cframe: CFrame, parent: Instance?)
 		generation = 0,
 	}
 
-	parts.model.Parent = parent or FloorService.generatedFolder()
+	parts.model.Parent = parent or WorldFolders.generated()
 	parts.model:PivotTo(cframe)
 	rooms[room.id] = room
 	return room
@@ -280,7 +318,7 @@ local function buildPracticeRoom()
 	if not RoomConfig.practice.enabled then
 		return
 	end
-	local static = FloorService.staticFolder()
+	local static = WorldFolders.static()
 	local stale = static:FindFirstChild("PracticeRoom")
 	if stale ~= nil then
 		stale:Destroy()
