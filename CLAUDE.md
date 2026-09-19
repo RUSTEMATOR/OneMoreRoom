@@ -44,9 +44,18 @@ A connected plugin can still be holding the sync: read the Rojo panel's text wit
 
 A service is a ModuleScript returning a table with optional `Init()` and `Start()`. Three rules:
 
-1. **`Init` may not call other services.** So load order cannot cause a nil-reference, and circular requires are fine.
+1. **`Init` may not call other services.** So load order cannot cause a nil-reference.
 2. **`Start` may not yield.** So boot is synchronous and the "everything booted" signal is trustworthy. A service needing a loop `task.spawn`s it itself inside `Start`.
 3. Services reference each other by plain sibling `require` — no locator, no injection, full type inference.
+
+**The dependency graph is one-way and must stay that way.** `ServerMain` requires every service at top level, so a top-level cycle is a hard boot error — circular requires are only safe when lazy (inside a function). Current DAG:
+
+```
+TrainingDummyService ──> CombatService ──> PlayerService
+         └────────────> FloorService
+```
+
+**`PlayerService` requires no other service, ever.** It sits at the root. A service that needs to react to the character lifecycle connects its own `CharacterAdded`/`CharacterRemoving` and compares `PlayerService.generation(player)`; where `PlayerService` genuinely has to notify outward, it fires a `BindableEvent` (`onDied`, `onSpawned`) rather than calling anyone.
 
 `ServerMain` requires from an explicit ordered list, not `:GetChildren()`: boot order is part of the contract, shows in diffs, and fails loudly on a typo. It sets `OMF_ServerReady` when done. Errors are deliberately uncaught — a crash leaves the attribute unset and produces a clean stack trace, failing both QA signals instead of hiding.
 
@@ -58,7 +67,22 @@ Full loop in `docs/ARCHITECTURE.md`, automated by the `/playtest` skill. The sho
 stylua --check src tests && selene src tests && rojo build default.project.json -o "$SCRATCH/omf.rbxl"
 ```
 
-then start play, poll `OMF_ServerReady`, run `require(ServerStorage.Specs.RunAll)()`, and sweep `LogService:GetLogHistory()` in **both** the Server and Client datamodels filtering on a timestamp captured before the run. **Pass = zero `MessageError` in both.**
+then start play, poll `OMF_ServerReady`, run the spec suite, and sweep `LogService:GetLogHistory()` in **both** the Server and Client datamodels filtering on a timestamp captured before the run. **Pass = zero `MessageError` in both.**
+
+### Two rules the QA loop breaks without
+
+**1. Restart Play after every code change.** Rojo syncs into the **Edit** datamodel. A running Play session keeps the code it started with, so editing a file and re-running the suite silently re-tests the old code — and the check counts look plausible enough not to notice. Always `start_stop_play(false)` then `(true)` after a sync, and confirm the change landed by reading the module's `Source` in the Edit datamodel first.
+
+**2. Run specs through `OMF_RunSpecs`, never by requiring `RunAll` directly.** `execute_luau` runs in its **own Lua VM with its own module cache**. A spec required from there gets fresh, un-booted copies of every service: `PlayerService.all()` comes back empty while the real one has players, and every module-state assertion fails for a reason that looks like a product bug. `ServerMain` publishes a `BindableFunction` at `ServerStorage.OMF_RunSpecs` whose callback was created in the boot context; it returns the result as a JSON string so it survives the VM boundary.
+
+```lua
+local raw = game.ServerStorage:WaitForChild("OMF_RunSpecs"):Invoke()
+local result = game:GetService("HttpService"):JSONDecode(raw)
+```
+
+Specs that only read the DataModel (instances, attributes) pass either way — which is exactly why this is easy to miss until a spec touches service state.
+
+**3. `default.project.json` changes need a `rojo serve` restart.** Rojo does not hot-reload the project file, so a newly added node never appears. Restarting drops the plugin connection and needs a manual Connect, so batch project-file changes rather than making them mid-session.
 
 ## Roblox Studio MCP skills
 

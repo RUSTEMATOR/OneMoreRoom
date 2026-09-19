@@ -1,0 +1,12 @@
+--!strict
+-- Intentionally empty.
+--
+-- Roblox injects a default health-regeneration script named "Health" into every
+-- character. A script of our own with that name replaces it, which is the documented
+-- way to disable default regen. We need it gone: PlayerService owns health as an
+-- authoritative server number and mirrors it onto Humanoid.Health, and background
+-- regen would creep the Humanoid value between mirror writes and drift the overhead
+-- bar off the real number.
+--
+-- Do not add code here. PlayerService.bindCharacter also destroys any leftover default
+-- "Health" script as a backstop in case this node regresses out of default.project.json.

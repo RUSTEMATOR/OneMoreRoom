@@ -6,6 +6,7 @@ local Spec = require(script.Parent.Spec)
 
 local SPECS = {
 	"Phase00_Boot",
+	"Phase01_Combat",
 }
 
 return function()

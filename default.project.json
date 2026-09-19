@@ -43,6 +43,15 @@
 			"StarterPlayerScripts": {
 				"$className": "StarterPlayerScripts",
 				"$path": "src/Client"
+			},
+
+			"StarterCharacterScripts": {
+				"$className": "StarterCharacterScripts",
+				"$ignoreUnknownInstances": true,
+
+				"Health": {
+					"$path": "src/Character/Health.server.luau"
+				}
 			}
 		},
 

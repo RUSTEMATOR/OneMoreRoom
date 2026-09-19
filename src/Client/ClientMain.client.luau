@@ -9,6 +9,7 @@ local folder = script.Parent:WaitForChild("Controllers")
 local ORDER = {
 	"InputController",
 	"HudController",
+	"FeedbackController",
 	"CameraController",
 }
 
