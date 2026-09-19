@@ -1,6 +1,6 @@
 ---
 name: phase-start
-description: Begin a One More Floor development session — load project context, verify the Rojo/Studio connection, and pick up the current milestone. Use at the start of any session working on this project.
+description: Begin a One More Room development session — load project context, verify the Rojo/Studio connection, and pick up the current milestone. Use at the start of any session working on this project.
 ---
 
 # Phase start
@@ -12,7 +12,7 @@ description: Begin a One More Floor development session — load project context
 3. **Start Rojo** if it is not already serving:
    ```sh
    export PATH="$HOME/.rokit/bin:$PATH"
-   cd ~/Desktop/one-more-floor
+   cd ~/Desktop/one-more-room
    curl -sS localhost:34872/api/rojo || rojo serve   # run in background if not up
    ```
 

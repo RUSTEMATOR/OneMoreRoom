@@ -1,6 +1,6 @@
 ---
 name: phase-done
-description: Close out a One More Floor phase — verify, update the progress ledger and bug list, sync the build tracker artifact, and commit. Use when a phase's work is finished.
+description: Close out a One More Room phase — verify, update the progress ledger and bug list, sync the build tracker artifact, and commit. Use when a phase's work is finished.
 ---
 
 # Phase done

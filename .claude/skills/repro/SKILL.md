@@ -1,6 +1,6 @@
 ---
 name: repro
-description: Reproduce a One More Floor bug from its run seed — launch a run pinned to that seed and drive to the failing floor. Use when investigating a bug from the ledger or any report that carries a seed.
+description: Reproduce a One More Room bug from its run seed — launch a run pinned to that seed and drive to the failing floor. Use when investigating a bug from the ledger or any report that carries a seed.
 ---
 
 # Repro

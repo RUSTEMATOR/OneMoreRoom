@@ -1,4 +1,4 @@
-# One More Floor
+# One More Room
 
 A roguelite tower climber for Roblox. Choose a door, fight, loot, upgrade, climb. Boss every 10 floors. Die, keep some progression, run again.
 

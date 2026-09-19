@@ -1,4 +1,4 @@
-# One More Floor — progress ledger
+# One More Room — progress ledger
 
 Canonical status. The build tracker artifact is a published *view* of this file, synced one way at the end of each session. Nothing is ever read back from the artifact into the repo.
 
@@ -32,7 +32,7 @@ None recorded yet.
 
 ## Next
 
-1. User clicks Connect in Studio, then Save As to `place/OneMoreFloor.rbxl`
+1. User clicks Connect in Studio, then Save As to `place/OneMoreRoom.rbxl`
 2. Run the Phase 0 acceptance playtest — `OMF_ServerReady`, `OMF_ClientReady`, `RunAll` all-pass, zero errors in both datamodels
 3. Publish the build tracker artifact
 4. Phase 1 — player health, stamina, sword attack, dodge, death, respawn

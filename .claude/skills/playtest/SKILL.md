@@ -13,7 +13,7 @@ Resolve the Studio id with `list_roblox_studios` first. Never hardcode it; it ch
 
 ```sh
 export PATH="$HOME/.rokit/bin:$PATH"
-cd ~/Desktop/one-more-floor
+cd ~/Desktop/one-more-room
 stylua --check src tests && selene src tests && rojo build default.project.json -o /tmp/omf-check.rbxl
 ```
 
