@@ -16,6 +16,7 @@ local SPECS = {
 	"Phase08_Weapons",
 	"Phase09_Progression",
 	"Phase10_Boss",
+	"RunReview",
 }
 
 -- The suite runs against the live world, and the practice skeleton actively hunts the
@@ -34,15 +35,35 @@ local function setPracticeEnabled(enabled: boolean)
 	end)
 end
 
+-- Runs start and end all through this suite, and a run ending fires an outbound HTTP
+-- request. That is self-acting behaviour with a cost attached, so it belongs in the
+-- quiesce list beside the practice skeleton. The RunReview spec re-enables it around
+-- its own section, with an injected transport.
+local function setReviewEnabled(enabled: boolean)
+	pcall(function()
+		local services = game:GetService("ServerScriptService"):FindFirstChild("Services")
+		local reviewService = services and services:FindFirstChild("RunReviewService")
+		if reviewService ~= nil then
+			(require(reviewService) :: any).setEnabled(enabled)
+		end
+	end)
+end
+
 return function()
 	local results: { Spec.Result } = {}
 	local passed = 0
 	local failed = 0
 
 	setPracticeEnabled(false)
+	setReviewEnabled(false)
 	task.wait(0.2)
 
+	-- Published as a DataModel attribute, not a module variable, precisely because
+	-- attributes are the one thing execute_luau's separate VM can see. When the suite
+	-- stops returning, this says which spec it is sitting in -- which is the difference
+	-- between a diagnosis and nine minutes of guessing.
 	for _, name in SPECS do
+		game:SetAttribute("OMF_SpecRunning", name)
 		local module = script.Parent:FindFirstChild(name)
 		if module == nil then
 			table.insert(results, {
@@ -76,7 +97,9 @@ return function()
 		end
 	end
 
+	game:SetAttribute("OMF_SpecRunning", nil)
 	setPracticeEnabled(true)
+	setReviewEnabled(true)
 
 	return {
 		allPassed = failed == 0,

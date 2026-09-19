@@ -199,6 +199,8 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 - **Rojo sync stalls on a confirmation.** Fix is Rojo Settings → Confirmation Behavior → Never.
 - **Specs could not see service state.** `execute_luau` runs in its own Lua VM with its own module cache, so a directly-required spec tested fresh, un-booted service copies. Fixed with the `ServerStorage.OMF_RunSpecs` BindableFunction, whose callback is created in the boot context. Recorded in `CLAUDE.md`; this affects every future phase.
 - **Stale Play sessions.** Rojo syncs into the Edit datamodel, so a running Play session keeps its original code and silently re-tests it. Always restart Play after a sync. Recorded in `CLAUDE.md`.
+- **A suite that stops responding was undiagnosable.** `RunAll` now publishes the running spec's name to the `OMF_SpecRunning` DataModel attribute — chosen because an attribute is the one kind of state `execute_luau`'s separate VM can read. A stalled suite now names the spec it is sitting in instead of just returning "running".
+- **`BindableEvent:Fire` is deferred here, not synchronous.** Confirmed by experiment: fire a Bindable and the listener's flag is still false on the next line. An audit of every fire site and listener in `src/` found no production code that depends on synchronous delivery — `FloorService.endRun` already fires last, and the deferred queue is FIFO, so a fatal hit's `onDamaged` is still accumulated before `onRunEnded` is handled. Specs must `task.wait()` after an action before asserting on a listener's effects. Recorded in `CLAUDE.md`.
 
 ## Playtest log
 
@@ -215,8 +217,23 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 | 2026-09-19 | 08 | 877 / 877 (nine specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-19 | 09 | 941 / 941 (ten specs, ×2 runs) | 0 server, 0 client | pass |
 | 2026-09-20 | 10 | 1017 / 1017 (eleven specs, ×2 runs) | 0 server, 0 client | pass |
+| 2026-09-20 | run review | 1102 / 1102 (twelve specs) | 0 server, 0 client | pass |
 
 The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens). That is not a hang.
+
+## The post-run review
+
+Not a roadmap phase. When a run ends, `RunReviewService` — a pure observer with no edge back into any other service — sends the run's shape to the TypeSafe System One API in a `task.spawn` and records a verdict: how frustrating the run probably felt, whether it contained a difficulty spike, and the single best explanation for how it ended. Nothing waits on it and nothing seeded can see it, so the reproducibility guarantee is untouched.
+
+Three empirical findings shaped it, none of them assumptions:
+
+- **~615 ms round trip**, six times the documented figure. Acceptable after a run, unacceptable anywhere near the tick.
+- **Identical payloads return drifting numbers** (0.83 / 0.82 / 0.80 on one Choice, 3.08 / 3.07 / 3.04 on one Score). The winning option and the Score *level* are stable; the floats are not. So the verdict keeps the level index, never the float.
+- **Confidence is well calibrated.** Every answer at 0.88 or above was correct; both wrong answers self-reported at 0.26 and 0.42. Hence `confidenceFloor = 0.7`, with anything below it filed as `unclassified` rather than believed.
+
+One design bug the experiments caught: the root-cause question originally had no no-match option, and confidently answered "attrition" for a run in which nobody died. Adding `survived` fixed it (0.99 confidence on a survived run, 0.90 on a boss wall). `RunReview`'s spec asserts that option still exists.
+
+**Still needed from you before it can reach the API:** enable HTTP requests in Experience Settings, and add a `TYPESAFE_API_KEY` secret in Creator Hub. Until then every run simply ends without a verdict, which is the designed failure mode and is regression-tested.
 
 ## Next
 

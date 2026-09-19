@@ -223,7 +223,7 @@ end
 function PlayerService.applyDamage(
 	player: Player,
 	amount: number,
-	_info: CombatTypes.DamageInfo
+	info: CombatTypes.DamageInfo
 ): (number, string?)
 	local state = states[player]
 	if state == nil then
@@ -237,6 +237,10 @@ function PlayerService.applyDamage(
 	state.health = math.clamp(state.health - amount, 0, state.maxHealth)
 	local dealt = before - state.health
 	mirror(state)
+
+	if dealt > 0 then
+		PlayerService.onDamaged:Fire(player, dealt, info.weapon)
+	end
 
 	if state.health <= 0 then
 		PlayerService.handleDeath(player, state.generation)
@@ -278,6 +282,7 @@ end
 
 -- A BindableEvent rather than a direct call, because PlayerService must not require
 -- any other service. CombatService and TrainingDummyService subscribe.
+PlayerService.onDamaged = Instance.new("BindableEvent")
 PlayerService.onDied = Instance.new("BindableEvent")
 PlayerService.onSpawned = Instance.new("BindableEvent")
 
