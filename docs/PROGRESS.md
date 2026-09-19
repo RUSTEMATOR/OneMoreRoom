@@ -2,6 +2,8 @@
 
 Canonical status. The build tracker artifact is a published *view* of this file, synced one way at the end of each session. Nothing is ever read back from the artifact into the repo.
 
+Tracker: https://claude.ai/artifact/AooT5JjezgLaNBticyAfqj
+
 ## Current milestone
 
 Phase 0 — Foundation
