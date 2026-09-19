@@ -72,7 +72,7 @@ Why `OMF_ServerReady` matters as a *second* signal: a clean log alone cannot dis
 |---|---|
 | Rojo silently clobbers a Studio-side script edit | `$path` boundary, blanket `multi_edit` ban, blocking BuildStamp probe |
 | Plugin serving but not connected | Step 2 is mandatory and blocking; never fix Studio-side |
-| `PlaceId == 0`, so DataStore is unavailable | `SaveService.isPersistent()` guard and in-memory fallback; publish before Phase 13 |
+| DataStore unavailable before Phase 13 | Retired: the place is published (`placeId 89607768864554`). `SaveService.isPersistent()` still guards it; enable Studio Access to API Services before Phase 13 |
 | "Zero errors" false negative | Timestamp-filtered sweep in *both* datamodels plus the independent `OMF_ServerReady` signal |
 | Procedural content drift | `Generated` cleared each run, `Static` never touched by code; spec asserts `Generated` is empty pre-run |
 | Seed reproducibility breaks | Pre-commit `math.random` grep plus golden-hash layout spec |

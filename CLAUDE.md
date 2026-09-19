@@ -28,6 +28,10 @@ Therefore:
 
 If disk edits are not showing up in Studio, the plugin is not connected. **Stop and ask the user to click Plugins → Rojo → Connect.** Never work around it from the Studio side — that is how you end up with two divergent sources of truth.
 
+A connected plugin can still be holding the sync: read the Rojo panel's text with `execute_luau` over `PluginGuiService`, and if it shows a pending **Accept / Abort** confirmation, ask the user to click Accept. Rojo's **Settings → Confirmation Behavior** should be **Never** for this project — disk is authoritative here by design, so the confirmation is guarding against precisely the behavior we want.
+
+**Team Create must stay off.** It and Rojo both want to own script contents. The console line "joined live editing session" means it is on.
+
 ## Conventions
 
 - **Never name a module after a `game:GetService()` name.** This is why the run-state service is `RunSessionService`, not `RunService` — the latter shadows the real service wherever both are needed, and the resulting bug reads as correct code.
@@ -81,7 +85,8 @@ Available on demand via `mcp__Roblox_Studio__skill`. Use them instead of guessin
 - `wait_job_finished` needs a `jobId` from an `async: true` call; no tool in the QA loop exposes that. Bounded-poll instead.
 - `search_game_tree` caps at 200 nodes, default depth 3. Always scope with `path`.
 - **No MCP tool opens or saves a place file.** This is why the loop uses `rojo serve`, not `rojo build`.
-- `PlaceId == 0` until the place is published, so DataStore cannot work. Publish and enable Studio Access to API Services before Phase 13.
+- The place is published (`placeId 89607768864554`), so DataStore is reachable. **Studio Access to API Services** (Game Settings → Security) still has to be enabled before Phase 13.
+- `studio_id` changes on every Studio restart — the acceptance run for Phase 0 hit this. Always resolve it with `list_roblox_studios`.
 
 ## Layout
 
