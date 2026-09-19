@@ -26,11 +26,22 @@ ReviewConfig.model = "jev-latest"
 -- Configure it in Creator Hub under this name.
 ReviewConfig.secretKey = "TYPESAFE_API_KEY"
 
--- Answers below this confidence are recorded as unclassified rather than believed.
--- Chosen from measurement, not taste: across the experiments every answer at 0.88 or
--- above was correct, and both wrong answers came back at 0.26 and 0.42. The model is
--- honest about not knowing, so the useful move is to listen when it is sure.
-ReviewConfig.confidenceFloor = 0.7
+-- Answers below the relevant floor are recorded as unclassified rather than believed.
+-- Not a single global number: the live TypeSafe docs argue against a uniform floor,
+-- because different wrong answers cost different amounts. Both of these currently
+-- feed only human-read QA output, never gameplay, but the two mistakes are not
+-- equally cheap:
+--   * A wrong frustrationLevel is a soft miss -- "grindy" read as "a fair challenge"
+--     costs nothing but a slightly noisy line in a log.
+--   * A wrong rootCause actively misleads: it sends a QA session chasing a pattern
+--     ("boss_wall is common!") that was never real. That deserves a harder floor.
+-- 0.7 for frustration is the same number the original experiments picked (every
+-- answer at 0.88+ was correct, both wrong answers were 0.26/0.42, so 0.7 sits with
+-- daylight on both sides). 0.85 for rootCause is deliberately tighter for the reason
+-- above; there is no equivalent measurement for it yet, so treat it as a starting
+-- point to adjust once enough real verdicts accumulate to check it against.
+ReviewConfig.frustrationConfidenceFloor = 0.7
+ReviewConfig.rootCauseConfidenceFloor = 0.85
 
 ReviewConfig.request = {
 	timeoutSeconds = 10,

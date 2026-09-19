@@ -81,9 +81,22 @@ return function()
 		#ReviewConfig.frustrationLevels >= 3
 	)
 	spec:check(
-		"the confidence floor is an actual threshold",
-		ReviewConfig.confidenceFloor > 0 and ReviewConfig.confidenceFloor < 1,
-		ReviewConfig.confidenceFloor
+		"the frustration confidence floor is an actual threshold",
+		ReviewConfig.frustrationConfidenceFloor > 0 and ReviewConfig.frustrationConfidenceFloor < 1,
+		ReviewConfig.frustrationConfidenceFloor
+	)
+	spec:check(
+		"the rootCause confidence floor is an actual threshold",
+		ReviewConfig.rootCauseConfidenceFloor > 0 and ReviewConfig.rootCauseConfidenceFloor < 1,
+		ReviewConfig.rootCauseConfidenceFloor
+	)
+	-- Per the live docs' own guidance against a single uniform floor: a wrong
+	-- rootCause actively misleads a QA session, a wrong frustration level is a soft
+	-- miss, so rootCause earns the harder bar.
+	spec:check(
+		"rootCause is held to a stricter bar than frustration",
+		ReviewConfig.rootCauseConfidenceFloor > ReviewConfig.frustrationConfidenceFloor,
+		`{ReviewConfig.rootCauseConfidenceFloor} vs {ReviewConfig.frustrationConfidenceFloor}`
 	)
 	spec:check("the endpoint is https", ReviewConfig.endpoint:sub(1, 8) == "https://")
 	spec:check(

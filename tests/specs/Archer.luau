@@ -235,9 +235,17 @@ return function()
 		-- Put the player inside the retreat band and confirm the archer actually
 		-- backs away. This is the check that separates real kiting from a number in
 		-- a config file.
+		--
+		-- The section above just made it fire, which means it can still be sitting
+		-- in Cooldown here -- a phase that holds still by design until attackReadyAt
+		-- passes, up to a full attackCooldown (1.6s) after the shot. That is correct
+		-- behaviour, not something this test should be timing-dependent on: force it
+		-- back to Chase so what gets measured is the retreat logic itself.
 		local crowded = playerRoot.Position + Vector3.new(ranged.retreatRange - 6, 0, 0)
 		archer.model:PivotTo(CFrame.new(crowded))
 		archer.homePosition = crowded
+		archer.phase = "Chase"
+		archer.attackReadyAt = 0
 		task.wait(0.2)
 
 		local closeBefore = (archer.root.Position - playerRoot.Position).Magnitude

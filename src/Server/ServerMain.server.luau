@@ -75,6 +75,27 @@ specRunner.OnInvoke = function()
 end
 specRunner.Parent = game:GetService("ServerStorage")
 
+-- Same reasoning and the same VM-boundary fix as OMF_RunSpecs above, for the balance
+-- digest: RunReviewService.runDigest() reads RunReviewService's own in-memory history,
+-- so it has to run against the booted service, not a fresh copy from another VM.
+-- Unlike the spec runner this one YIELDS (it makes a live HTTP call when there is
+-- enough history to ask about), so a caller must task.spawn + poll it rather than
+-- block on the Invoke, exactly as CLAUDE.md already prescribes for a long-running
+-- execute_luau call.
+local digestRunner = Instance.new("BindableFunction")
+digestRunner.Name = "OMF_RunBalanceDigest"
+digestRunner.OnInvoke = function()
+	local HttpService = game:GetService("HttpService")
+	local ok, result = pcall(function()
+		return (services.RunReviewService :: any).runDigest()
+	end)
+	if not ok then
+		return HttpService:JSONEncode({ failure = "harness_error", detail = tostring(result) })
+	end
+	return HttpService:JSONEncode(result)
+end
+digestRunner.Parent = game:GetService("ServerStorage")
+
 -- Machine-readable boot signal for the QA loop. The print below is for humans only and
 -- is never asserted on: a stray log line could fake it, an attribute cannot.
 game:SetAttribute("OMF_ServerReady", true)
