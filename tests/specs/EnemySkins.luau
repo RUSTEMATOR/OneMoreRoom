@@ -10,6 +10,11 @@
 -- What this asserts is the WIRING -- every kind that has a textureId actually gets a
 -- Decal, on all four side faces, carrying exactly the id AssetIds names for it. It
 -- does not and cannot assert that the texture looks good; that is a manual call.
+--
+-- Also covers the fix for the report that prompted this file's rewrite: "they don't
+-- wear anything" -- a torso decal on a single box still reads as a textured crate,
+-- not a body. EnemyBuilder now gives every kind four limbs; this asserts they exist,
+-- are jointed to the torso, and are not the sole physical collider.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -58,6 +63,25 @@ local function checkSkin(spec: any, label: string, model: Model, expectedTexture
 		torso.Color ~= Color3.fromRGB(255, 255, 255),
 		tostring(torso.Color)
 	)
+
+	-- A body, not a crate: four limbs, each jointed to the torso and none of them
+	-- fighting it for collision.
+	local limbJoints = { "LeftShoulder", "RightShoulder", "LeftHip", "RightHip" }
+	local limbNames = { "Left Arm", "Right Arm", "Left Leg", "Right Leg" }
+	for _, limbName in limbNames do
+		local limb = model:FindFirstChild(limbName)
+		spec:truthy(`{label} has a {limbName}`, limb)
+		if limb ~= nil and limb:IsA("BasePart") then
+			spec:check(`{label}'s {limbName} does not collide`, limb.CanCollide == false)
+		end
+	end
+	for _, jointName in limbJoints do
+		local joint = torso:FindFirstChild(jointName)
+		spec:truthy(`{label} has a {jointName} joint`, joint)
+		if joint ~= nil and joint:IsA("Motor6D") then
+			spec:equals(`{label}'s {jointName} is welded to the torso`, joint.Part0, torso)
+		end
+	end
 end
 
 return function()

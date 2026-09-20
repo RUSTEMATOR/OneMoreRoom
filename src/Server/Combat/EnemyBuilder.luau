@@ -1,9 +1,17 @@
 --!strict
 -- Builds an enemy rig from its data spec. Not a service: no lifecycle, no state.
 --
--- The rig is a minimal R6 Humanoid — HumanoidRootPart, Torso, Head and two Motor6Ds.
--- A Humanoid (rather than CFrame movement) is what gives us Humanoid:MoveTo with real
--- collision, so a skeleton bumps into walls instead of walking through them.
+-- The rig is a minimal R6 Humanoid — HumanoidRootPart, Torso, Head, four limbs, and
+-- the Motor6Ds joining them. A Humanoid (rather than CFrame movement) is what gives
+-- us Humanoid:MoveTo with real collision, so a skeleton bumps into walls instead of
+-- walking through them.
+--
+-- The limbs are decorative only -- CanCollide = false, same as Head. Torso alone
+-- stays the sole physical collider, so four more unanchored rigid bodies welded to a
+-- moving Humanoid cannot introduce jitter the original three-part rig didn't have.
+-- Hit detection needs nothing extra for them either: CombatService.damageableFor
+-- walks up to 4 ancestors from whatever part was actually hit, so an arm or a leg
+-- resolves to the same registered Damageable the Torso does.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -79,6 +87,41 @@ function EnemyBuilder.buildFromRig(
 	neck.C0 = CFrame.new(0, rig.torsoSize.Y / 2, 0)
 	neck.C1 = CFrame.new(0, -rig.headSize.Y / 2, 0)
 	neck.Parent = torso
+
+	-- Four limbs, R6-proportioned off the torso's own size so every kind's rig stays
+	-- self-consistent without a second set of dimensions in EnemyConfig. Coloured to
+	-- match the torso -- a uniform, not exposed bone -- so the skin decal above reads
+	-- as a body wearing armour plating rather than a textured crate standing next to
+	-- bare limbs.
+	local limbSize =
+		Vector3.new(rig.torsoSize.X * 0.42, rig.torsoSize.Y * 0.95, rig.torsoSize.Z * 0.85)
+
+	local function buildLimb(limbName: string, jointName: string, socketX: number, socketY: number)
+		local limb = makePart(limbName, limbSize, rig.torsoColor, false)
+		limb.Material = rig.material
+		limb.Parent = model
+
+		local joint = Instance.new("Motor6D")
+		joint.Name = jointName
+		joint.Part0 = torso
+		joint.Part1 = limb
+		-- C0 places the socket on the TORSO; C1 places it at the LIMB's own top edge,
+		-- so the limb hangs down from the socket the way Neck already hangs the head
+		-- up from the torso's top edge, just mirrored.
+		joint.C0 = CFrame.new(socketX, socketY, 0)
+		joint.C1 = CFrame.new(0, limbSize.Y / 2, 0)
+		joint.Parent = torso
+	end
+
+	local shoulderX = rig.torsoSize.X / 2 + limbSize.X / 2
+	local shoulderY = rig.torsoSize.Y * 0.32
+	buildLimb("Left Arm", "LeftShoulder", -shoulderX, shoulderY)
+	buildLimb("Right Arm", "RightShoulder", shoulderX, shoulderY)
+
+	local hipX = rig.torsoSize.X / 4
+	local hipY = -rig.torsoSize.Y / 2
+	buildLimb("Left Leg", "LeftHip", -hipX, hipY)
+	buildLimb("Right Leg", "RightHip", hipX, hipY)
 
 	local humanoid = Instance.new("Humanoid")
 	humanoid.RigType = Enum.HumanoidRigType.R6
