@@ -114,6 +114,34 @@ return function()
 		-- fixture that makes starting a run something a human can actually do.
 		local gate = workspace.Static:FindFirstChild("RunGate")
 		spec:truthy("the run gate exists in Workspace/Static", gate)
+		if gate ~= nil then
+			spec:truthy(
+				"the gate has a beam visible from across the lobby",
+				gate:FindFirstChild("Beam")
+			)
+		end
+
+		-- Found by manual QA: a fresh player's very first camera direction faced the
+		-- practice room, not the gate, so nothing pointed toward the actual way to
+		-- play. First-look direction is a stronger signal than any sign -- this
+		-- pins it so a future spawn-pad edit cannot regress it silently.
+		local spawnLocation = workspace:FindFirstChild("SpawnLocation")
+		if
+			spawnLocation ~= nil
+			and spawnLocation:IsA("BasePart")
+			and gate ~= nil
+			and gate:IsA("BasePart")
+		then
+			local toGate = (gate.Position - spawnLocation.Position)
+			local flatToGate = Vector3.new(toGate.X, 0, toGate.Z).Unit
+			local facing = spawnLocation.CFrame.LookVector
+			local flatFacing = Vector3.new(facing.X, 0, facing.Z).Unit
+			spec:check(
+				"spawn faces toward the run gate, not away from it",
+				flatFacing:Dot(flatToGate) > 0.5,
+				`facing {flatFacing} vs toward-gate {flatToGate}`
+			)
+		end
 
 		if
 			gate ~= nil

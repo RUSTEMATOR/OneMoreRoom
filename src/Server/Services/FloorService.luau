@@ -283,21 +283,59 @@ local function buildRunGate()
 	glow.CFrame = CFrame.new(pad.Position + Vector3.new(0, spec.size.Y / 2 + 0.06, 0))
 	glow.Parent = pad
 
+	-- A floor-level glow only reads once a player is already looking straight down
+	-- at it. A tall, thin beam catches the eye from anywhere in the lobby and over
+	-- the practice room's own walls, which a flat pad standing alone did not.
+	local beam = Instance.new("Part")
+	beam.Name = "Beam"
+	beam.Size = Vector3.new(1.2, 24, 1.2)
+	beam.Anchored = true
+	beam.CanCollide = false
+	beam.CanQuery = false
+	beam.Material = Enum.Material.Neon
+	beam.Color = Color3.fromRGB(80, 220, 220)
+	beam.Transparency = 0.45
+	beam.CFrame = CFrame.new(pad.Position + Vector3.new(0, spec.size.Y / 2 + 12, 0))
+	beam.Parent = pad
+
 	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.fromScale(10, 3)
-	billboard.StudsOffsetWorldSpace = Vector3.new(0, 3.5, 0)
+	billboard.Size = UDim2.fromScale(14, 4)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, 4.5, 0)
 	billboard.AlwaysOnTop = true
 	billboard.Parent = pad
 
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamMedium
-	label.TextScaled = true
-	label.TextColor3 = Color3.fromRGB(236, 244, 244)
-	label.TextStrokeTransparency = 0.4
-	label.Text = "Descend"
-	label.Parent = billboard
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Vertical
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = billboard
+
+	-- Two lines rather than one: "Descend" alone read as lobby flavour text, not an
+	-- instruction. The first line says what it DOES in plain words; the second
+	-- keeps the flavour without being the only thing a first-time player sees.
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.fromScale(1, 0)
+	title.AutomaticSize = Enum.AutomaticSize.Y
+	title.LayoutOrder = 1
+	title.BackgroundTransparency = 1
+	title.Font = Enum.Font.GothamBold
+	title.TextScaled = true
+	title.TextColor3 = Color3.fromRGB(236, 244, 244)
+	title.TextStrokeTransparency = 0.2
+	title.Text = "START RUN"
+	title.Parent = billboard
+
+	local subtitle = Instance.new("TextLabel")
+	subtitle.Size = UDim2.fromScale(1, 0)
+	subtitle.AutomaticSize = Enum.AutomaticSize.Y
+	subtitle.LayoutOrder = 2
+	subtitle.BackgroundTransparency = 1
+	subtitle.Font = Enum.Font.GothamMedium
+	subtitle.TextScaled = true
+	subtitle.TextColor3 = Color3.fromRGB(180, 230, 230)
+	subtitle.TextStrokeTransparency = 0.4
+	subtitle.Text = "Step here to descend"
+	subtitle.Parent = billboard
 end
 
 local lastGateAttemptAt: { [Player]: number } = {}
