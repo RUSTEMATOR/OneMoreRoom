@@ -17,4 +17,15 @@ return {
 		sentryBoltImpact = "rbxassetid://201858087",
 		cultistDetonation = "rbxassetid://129848017786439",
 	},
+	-- Creator Store, verified insertable and free at the time of writing. Applied as
+	-- Decals over each rig's own material/colour rather than replacing it -- if a
+	-- texture ever fails to load, the part still shows its correct base colour, so a
+	-- broken CDN fetch degrades to "flat" rather than to a missing/pink part.
+	textures = {
+		rustHusk = "rbxassetid://14872045086",
+		chromeHusk = "rbxassetid://2799843079",
+		signalSentry = "rbxassetid://24329741",
+		signalCultist = "rbxassetid://160935460",
+		theWarden = "rbxassetid://44256773",
+	},
 }

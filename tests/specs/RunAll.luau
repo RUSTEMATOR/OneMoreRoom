@@ -18,6 +18,7 @@ local SPECS = {
 	"Phase10_Boss",
 	"Archer",
 	"Cultist",
+	"EnemySkins",
 	"BalanceDigest",
 	"RunReview",
 }

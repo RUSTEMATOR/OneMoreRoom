@@ -10,6 +10,10 @@
 -- section: this biome reads as rusted machine-husks in a dead server-cathedral, not
 -- literal skeletons, even though the code keeps calling them that.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local AssetIds = require(ReplicatedStorage.Shared.Assets.AssetIds)
+
 local EnemyConfig = {}
 
 EnemyConfig.kinds = {
@@ -57,6 +61,7 @@ EnemyConfig.kinds = {
 			torsoColor = Color3.fromRGB(74, 70, 66),
 			material = Enum.Material.CorrodedMetal,
 			lungeAngle = 24,
+			textureId = AssetIds.textures.rustHusk,
 		},
 	},
 
@@ -134,6 +139,7 @@ EnemyConfig.kinds = {
 			torsoColor = Color3.fromRGB(40, 44, 50),
 			material = Enum.Material.Metal,
 			lungeAngle = 10,
+			textureId = AssetIds.textures.signalSentry,
 		},
 	},
 
@@ -195,6 +201,7 @@ EnemyConfig.kinds = {
 			torsoColor = Color3.fromRGB(90, 56, 40),
 			material = Enum.Material.CorrodedMetal,
 			lungeAngle = 16,
+			textureId = AssetIds.textures.signalCultist,
 		},
 	},
 
@@ -207,15 +214,26 @@ EnemyConfig.kinds = {
 
 		maxHealth = 150,
 		damage = 22,
-		walkSpeed = 13,
+		-- Was 13, one stud below what would have started closing the gap to the
+		-- player's own 16 too fast to create real distance. Reported unbeatable in
+		-- manual QA; this and attackRange below were the two actual causes.
+		walkSpeed = 12,
 
 		detectRange = 40,
 		leashRange = 70,
-		attackRange = 7.5,
+		-- Was 7.5 -- a full 2 studs past the player's own 5.5 sword reach, versus the
+		-- base Skeleton's 1-stud margin at 6.5. An elite is meant to punish closing
+		-- distance carelessly, not make retreating-then-swinging impossible outright.
+		-- Matches the base Skeleton's margin now; health and damage carry the "elite"
+		-- weight instead.
+		attackRange = 6.5,
 
 		noticeTime = 0.3,
-		-- Still readable, but tighter than the basic skeleton's 0.45.
-		attackWindup = 0.38,
+		-- Was 0.38, leaving only 0.08s of slack over the 0.30s dodge window -- barely
+		-- a margin for error versus the base Skeleton's 0.15s. Restored enough slack
+		-- that a well-timed dodge reliably beats it again, while staying tighter than
+		-- the base Skeleton's 0.45 so it still reads as faster and more dangerous.
+		attackWindup = 0.42,
 		attackRecovery = 0.4,
 		attackCooldown = 0.95,
 
@@ -235,6 +253,7 @@ EnemyConfig.kinds = {
 			torsoColor = Color3.fromRGB(150, 60, 150),
 			material = Enum.Material.Metal,
 			lungeAngle = 28,
+			textureId = AssetIds.textures.chromeHusk,
 		},
 	},
 }

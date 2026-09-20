@@ -45,6 +45,23 @@ function EnemyBuilder.buildFromRig(
 	torso.Material = rig.material
 	torso.Parent = model
 
+	-- A skin is a Decal layered over the material/colour, never a replacement for
+	-- them: `rig.torsoColor` is what reads at a glance and at range (the actual
+	-- gameplay signal -- cyan means Sentry, ember means Cultist), the texture is
+	-- surface detail for when a player is close enough to look. Wrapped on all four
+	-- side faces so it holds together from any angle a top-down camera catches.
+	if rig.textureId ~= nil and rig.textureId ~= "" then
+		for _, face in
+			{ Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right }
+		do
+			local skin = Instance.new("Decal")
+			skin.Name = "Skin"
+			skin.Texture = rig.textureId
+			skin.Face = face
+			skin.Parent = torso
+		end
+	end
+
 	local head = makePart("Head", rig.headSize, rig.boneColor, false)
 	head.Material = rig.material
 	head.Parent = model

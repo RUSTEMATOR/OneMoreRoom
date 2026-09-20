@@ -9,6 +9,10 @@
 -- and exit machinery as every other room. Building a parallel arena system would
 -- have meant re-solving sealing, occupancy, resets and doors for one encounter.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local AssetIds = require(ReplicatedStorage.Shared.Assets.AssetIds)
+
 local BossConfig = {}
 
 export type Attack = {
@@ -120,14 +124,20 @@ BossConfig.bosses = {
 			},
 		},
 
+		-- Reskinned alongside the Husks and the Sentry, not just renamed in flavour
+		-- text: same CorrodedMetal/Metal family the rest of the biome uses, scaled up.
+		-- Amber rather than the Husks' cyan/ember/magenta -- ties to the telegraph
+		-- colour its own attacks already draw on the floor, so "amber glow" reads as
+		-- Warden specifically before a player even sees its silhouette.
 		rig = {
 			torsoSize = Vector3.new(4, 4.4, 2),
 			headSize = Vector3.new(2.4, 2.4, 2.4),
 			rootSize = Vector3.new(4, 4.4, 2),
-			boneColor = Color3.fromRGB(228, 220, 236),
-			torsoColor = Color3.fromRGB(88, 70, 118),
-			material = Enum.Material.Slate,
+			boneColor = Color3.fromRGB(70, 66, 62),
+			torsoColor = Color3.fromRGB(120, 92, 42),
+			material = Enum.Material.CorrodedMetal,
 			lungeAngle = 30,
+			textureId = AssetIds.textures.theWarden,
 		},
 	},
 }

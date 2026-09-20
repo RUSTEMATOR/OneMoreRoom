@@ -225,6 +225,7 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 | 2026-09-20 | run gate | 1318 / 1318 (fourteen specs) | 0 server, 0 client | pass |
 | 2026-09-20 | Cultist | 1481 / 1481 (fifteen specs) | 0 server, 0 client | pass |
 | 2026-09-20 | gate signage | 1483 / 1483 (fifteen specs) | 0 server, 0 client | pass |
+| 2026-09-20 | Chrome Husk fix + cyborg skins | 1549 / 1549 (sixteen specs) | 0 server, 0 client | pass |
 
 The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens) when Studio has focus — several times longer when it does not, which is Studio throttling a backgrounded process, not a hang; the `OMF_SpecRunning` attribute says which spec it is sitting in either way.
 
@@ -271,6 +272,18 @@ The design intent is the opposite of the other two enemies: the Rust Husk is a t
 Wired into generation as a new **Sanctum** room (`RoomConfig.templates.Sanctum`, `encounter.kind = "Cultist"`), added to `FloorConfig.pool` — `generationVersion` bumped 5→6, golden hash regenerated. One more Creator Store asset (`cultistDetonation` in `AssetIds.luau`, verified insertable and free) covers the boom, broadcast through a new `Detonation` feedback kind that names no single target — a blast can catch several players or none, unlike `RangedImpact`.
 
 New spec: `tests/specs/Cultist.luau` — the safety property (blast radius exceeds trigger range) as an explicit assertion, a live section confirming it actually rushes and arms, that retreating past the blast radius after arming takes no damage, that standing in the blast when the fuse ends does, and that killing it early costs the player nothing.
+
+## Chrome Husk was unbeatable, and every enemy now wears a real skin
+
+Two things you reported together, fixed together.
+
+**The balance bug.** Chrome Husk's `attackRange` (7.5) reached 2 full studs past the player's own 5.5-stud sword — the base Rust Husk only reaches 1 stud past it — and `attackWindup` (0.38) left only 0.08s of slack over the 0.30s dodge window, versus the base Husk's 0.15s. Combined with `walkSpeed` (13) closing to within 3 studs of the player's own 16, retreating and re-engaging was never actually possible: an elite that cannot be dodged is not harder, it is unfair. All three numbers pulled back — `attackRange` to 6.5 (matching the base Husk), `attackWindup` to 0.42 (restoring real reaction margin), `walkSpeed` to 12.
+
+The existing spec had already asserted `attackWindup > CombatConfig.dodge.iframes` and passed the whole time — 0.38 > 0.30 is technically true. That is the bug in the *test*, not just the config: a check that only verifies a positive sign catches nothing near the boundary. Tightened to require real slack (`>= 0.1`), and added the missing other half — `elite.attackRange <= basic.attackRange` — since nothing had ever asserted an elite shouldn't out-range the enemy it's a harder version of.
+
+**The reskin.** Every enemy kind, plus the Warden, now wraps a Creator Store texture over its rig — rust-streaked metal on the Rust Husk, chrome on the Chrome Husk, a cyber-tech circuit board on the Signal Sentry, hazard stripes on the Signal Cultist, a server rack on the Warden. Applied as `Decal`s layered over each rig's existing material and colour, never replacing them: the colour is still the actual gameplay signal read at range (cyan means Sentry, ember means Cultist), the texture is surface detail for up close, and a texture that fails to load degrades to "flat colour" rather than a missing/pink part. Wrapped on all four side faces of the Torso so it holds together from any angle a top-down camera catches.
+
+Worth stating plainly: **I could not visually verify these render correctly.** `screen_capture` showed a blank, untextured surface on every decal I tested, in both Edit and Play — possibly the same class of tool limitation `CLAUDE.md` already documents for Play-mode screenshots, possibly something specific to decal content in this bridge. What IS verified, in the new `EnemySkins.luau` spec: every kind's `textureId` resolves to the id `AssetIds.textures` names for it, every built rig gets exactly four Decals covering Front/Back/Left/Right, and the base colour survives independent of the texture. **Please sanity-check how these actually look in your next manual pass** — if a texture reads wrong or ugly up close, the fix is one line in `EnemyConfig.luau`/`BossConfig.luau`'s `rig.textureId`, not a rebuild.
 
 ## Next
 

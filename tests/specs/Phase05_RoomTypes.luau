@@ -71,16 +71,27 @@ return function()
 		spec:check("elite has more health", elite.maxHealth > basic.maxHealth, elite.maxHealth)
 		spec:check("elite hits harder", elite.damage > basic.damage, elite.damage)
 		spec:check("elite pays out more", elite.goldReward > basic.goldReward, elite.goldReward)
-		-- An elite that cannot be dodged is not harder, it is unfair.
+		-- An elite that cannot be dodged is not harder, it is unfair. Reported
+		-- unbeatable in manual QA once: `windup > iframes` alone passed at 0.38 vs
+		-- 0.30, a technically-true 0.08s margin nobody could actually react on.
+		-- Require real slack, not just a positive sign.
 		spec:check(
-			"elite telegraph still outlasts the dodge i-frame window",
-			elite.attackWindup > CombatConfig.dodge.iframes,
+			"elite telegraph leaves a real reaction margin over the i-frame window",
+			elite.attackWindup - CombatConfig.dodge.iframes >= 0.1,
 			`{elite.attackWindup} vs {CombatConfig.dodge.iframes}`
 		)
 		spec:check(
 			"elite is still slower than the player",
 			elite.walkSpeed < CombatConfig.player.walkSpeed,
 			`{elite.walkSpeed} vs {CombatConfig.player.walkSpeed}`
+		)
+		-- The other half of the same bug: an elite that out-reaches the base
+		-- Skeleton wins by making retreat-then-swing impossible, not by being
+		-- tougher. It should hit no farther than the base version does.
+		spec:check(
+			"elite does not out-range the base Skeleton",
+			elite.attackRange <= basic.attackRange,
+			`{elite.attackRange} vs {basic.attackRange}`
 		)
 	end
 	spec:equals(
