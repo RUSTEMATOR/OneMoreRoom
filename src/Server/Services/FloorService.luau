@@ -249,6 +249,86 @@ function FloorService.advance(exitIndex: number?): RoomService.Room?
 	return FloorService.loadFloor(FloorService.currentFloor() + 1, template)
 end
 
+-- --------------------------------------------------------------------- gate
+
+-- The physical way a player starts a run. Built once, in Workspace/Static beside the
+-- training dummy and the shrines -- world content, not a menu, the same as everything
+-- else near spawn.
+local function buildRunGate()
+	local static = WorldFolders.static()
+	local stale = static:FindFirstChild("RunGate")
+	if stale ~= nil then
+		stale:Destroy()
+	end
+
+	local spec = FloorConfig.runGate
+	local pad = Instance.new("Part")
+	pad.Name = "RunGate"
+	pad.Size = spec.size
+	pad.Anchored = true
+	pad.CanCollide = true
+	pad.Material = Enum.Material.DiamondPlate
+	pad.Color = Color3.fromRGB(50, 54, 60)
+	pad.Position = spec.position + Vector3.new(0, spec.size.Y / 2, 0)
+	pad.Parent = static
+
+	local glow = Instance.new("Part")
+	glow.Name = "Glow"
+	glow.Size = Vector3.new(spec.size.X - 1, 0.1, spec.size.Z - 1)
+	glow.Anchored = true
+	glow.CanCollide = false
+	glow.CanQuery = false
+	glow.Material = Enum.Material.Neon
+	glow.Color = Color3.fromRGB(80, 220, 220)
+	glow.CFrame = CFrame.new(pad.Position + Vector3.new(0, spec.size.Y / 2 + 0.06, 0))
+	glow.Parent = pad
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.fromScale(10, 3)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, 3.5, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = pad
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamMedium
+	label.TextScaled = true
+	label.TextColor3 = Color3.fromRGB(236, 244, 244)
+	label.TextStrokeTransparency = 0.4
+	label.Text = "Descend"
+	label.Parent = billboard
+end
+
+local lastGateAttemptAt: { [Player]: number } = {}
+
+-- Polled like every other proximity interaction in the project (shrines, the boss
+-- arena's entry), never `.Touched` -- tied to network ownership, so a client could
+-- fire it. Starting a run for free is exactly the kind of thing that has to stay
+-- server-decided.
+local function stepRunGate()
+	if FloorService.isRunActive() then
+		return
+	end
+	local spec = FloorConfig.runGate
+	local now = os.clock()
+
+	for _, state in PlayerService.all() do
+		local root = state.rootPart
+		if root == nil or root.Parent == nil or not state.alive then
+			continue
+		end
+		if now - (lastGateAttemptAt[state.player] or -math.huge) < spec.cooldown then
+			continue
+		end
+		if (root.Position - spec.position).Magnitude <= spec.radius then
+			lastGateAttemptAt[state.player] = now
+			FloorService.beginRun()
+			return
+		end
+	end
+end
+
 -- --------------------------------------------------------------------- tick
 
 local function step()
@@ -303,6 +383,7 @@ function FloorService.Init()
 	currentPlan = nil
 	nextTemplate = nil
 	advancing = false
+	table.clear(lastGateAttemptAt)
 	runStateChanged = Net.event("RunStateChanged")
 	-- Created eagerly so they exist in the Explorer at boot and Phase00_Boot can
 	-- assert on them.
@@ -312,6 +393,14 @@ end
 
 function FloorService.Start()
 	RunService.Heartbeat:Connect(step)
+	RunService.Heartbeat:Connect(stepRunGate)
+
+	-- Deferred for the same reason RoomService's practice room is: Start must not
+	-- yield, and the pad wants a settled world before it is placed.
+	task.spawn(function()
+		task.wait(0.6)
+		buildRunGate()
+	end)
 
 	-- Dying during a run ends it. This is the designed roguelite loop, and it also
 	-- closes a real hole: a player who died on a cleared floor used to respawn at

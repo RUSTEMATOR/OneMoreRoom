@@ -4,5 +4,5 @@
 -- not the same thing, and a stale Studio is the main way a session silently diverges.
 
 return {
-	id = "balance-digest-20260920",
+	id = "run-gate-20260920",
 }

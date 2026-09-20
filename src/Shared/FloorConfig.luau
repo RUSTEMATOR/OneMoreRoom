@@ -35,6 +35,23 @@ FloorConfig.layout = {
 	exitTriggerWidth = 12,
 }
 
+-- A lobby fixture, not a floor. Before this existed there was no player-facing way
+-- to start a real run at all -- FloorService.beginRun was only ever called by specs,
+-- so a manual pass could reach the practice room's two exit doors and find nothing
+-- behind either of them, because nothing was. This is what those doors are missing.
+--
+-- South of spawn (+Z), the one direction the dummy, the practice skeleton, the
+-- practice room and the shrines all leave clear.
+FloorConfig.runGate = {
+	position = Vector3.new(0, 0, 20),
+	size = Vector3.new(10, 1, 10),
+	radius = 6,
+	-- Guards against retriggering every frame while standing on the pad after a run
+	-- somehow ends there again quickly; the isRunActive check does the real work of
+	-- not restarting a run that is already going.
+	cooldown = 2.0,
+}
+
 -- The ordered pool generation draws from. ORDER MATTERS AND IS PART OF THE SEED
 -- CONTRACT: `Rng:int(1, #pool)` indexes this list, so reordering or inserting changes
 -- every seed's output. Never iterate RoomConfig.templates with pairs to build this —

@@ -105,6 +105,31 @@ return function()
 	local ok, err = pcall(function()
 		local generated = FloorService.generatedFolder()
 
+		-- --------------------------------------------- A2. the run gate
+
+		-- Before this existed, FloorService.beginRun had no player-facing entry
+		-- point at all -- a manual pass could clear the practice room, watch both
+		-- exit doors open, and find nothing behind either of them, because nothing
+		-- was: the doors were real, the floor beyond them was not. This is the
+		-- fixture that makes starting a run something a human can actually do.
+		local gate = workspace.Static:FindFirstChild("RunGate")
+		spec:truthy("the run gate exists in Workspace/Static", gate)
+
+		if
+			gate ~= nil
+			and gate:IsA("BasePart")
+			and playerState ~= nil
+			and playerState.character ~= nil
+		then
+			FloorService.endRun()
+			playerState.character:PivotTo(gate.CFrame + Vector3.new(0, 4, 0))
+			task.wait(0.2)
+			spec:truthy("standing on the gate starts a run", FloorService.isRunActive())
+			FloorService.endRun()
+			task.wait(0.1)
+			spec:truthy("ending it leaves the gate re-armable", not FloorService.isRunActive())
+		end
+
 		-- ------------------------------------------------- B. starting a run
 
 		local roomOne = FloorService.beginRun(SEED)

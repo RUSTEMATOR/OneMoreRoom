@@ -195,6 +195,7 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 
 ## Resolved risks
 
+- **There was no player-facing way to start a real run.** Found by your manual check: clearing the practice room opens two doors, and walking through either does nothing, which reads as "the rooms aren't connected." They never were connected — the practice room is a standalone Phase 3 test bed, and `FloorService.beginRun` had never been wired to anything a player could touch; it was only ever called by specs. Every phase from 4 (floor system) through 10 (boss) had been spec-tested but never once played by a human. Fixed with a physical "Descend" pad 20 studs south of spawn — walking onto it calls `beginRun` server-side, the same proximity-poll pattern the upgrade shrines already use (never `.Touched`). Regression-tested in `Phase04_Floor`.
 - **DataStore unavailable.** The place is published (`placeId 89607768864554`). Studio Access to API Services still needs enabling before Phase 13.
 - **Rojo sync stalls on a confirmation.** Fix is Rojo Settings → Confirmation Behavior → Never.
 - **Specs could not see service state.** `execute_luau` runs in its own Lua VM with its own module cache, so a directly-required spec tested fresh, un-booted service copies. Fixed with the `ServerStorage.OMF_RunSpecs` BindableFunction, whose callback is created in the boot context. Recorded in `CLAUDE.md`; this affects every future phase.
@@ -220,6 +221,7 @@ The QA keystone. Every bug report can now carry a seed and a path and be replaye
 | 2026-09-20 | run review | 1102 / 1102 (twelve specs) | 0 server, 0 client | pass |
 | 2026-09-20 | Sentry + reskin | 1268 / 1268 (thirteen specs) | 0 server, 0 client | pass |
 | 2026-09-20 | balance digest | 1315 / 1315 (fourteen specs) | 0 server, 0 client | pass |
+| 2026-09-20 | run gate | 1318 / 1318 (fourteen specs) | 0 server, 0 client | pass |
 
 The suite now spends ~70 s in real waits (respawn, cooldowns, regen, chase, despawn, door tweens) when Studio has focus — several times longer when it does not, which is Studio throttling a backgrounded process, not a hang; the `OMF_SpecRunning` attribute says which spec it is sitting in either way.
 
@@ -266,9 +268,10 @@ Everything is walkable from the spawn pad:
 
 - **Training dummy** — 18 studs north (−Z). Takes 14 swings, tilts, resets.
 - **Practice skeleton** — beside it, respawns 6 s after you kill it.
-- **Practice room** — 78 studs north. Walk in and the entrance seals, an encounter spawns, and clearing it opens **two** exits. Walk back out mid-fight and it resets.
+- **Practice room** — 78 studs north. Walk in and the entrance seals, an encounter spawns, and clearing it opens **two** exits. **Those exits are decorative** — this is a standalone practice/test room, not floor 1 of an actual run, so walking through either door leads nowhere. Confirmed and fixed as a real gap below. Walk back out mid-fight and the room resets.
+- **The run gate** — 20 studs south, a lit "Descend" pad. Walk onto it to start an actual run: a real seeded floor 1, with real exits that really lead to floor 2, 3, and onward through the boss at floor 10. This did not exist before 2026-09-20 — see the bug ledger.
 - **Upgrade shrines** — 26 studs west, a row of four. Each shows its level and cost; walk into one to buy. You need Soul Shards, which you get by ending a run.
-- **The Warden** — walk a run to floor 10 (or call `FloorService.loadFloor(10, "Combat")` directly in a spec; the depth forces the Boss template regardless).
+- **The Warden** — walk a run from the gate to floor 10, or call `FloorService.loadFloor(10, "Combat")` directly in a spec; the depth forces the Boss template regardless.
 
 ## Phase gates
 
