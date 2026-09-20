@@ -57,7 +57,7 @@ Where a door leads is keyed on the room you are standing in, not just the depth 
 
 ## Room types
 
-Combat (fight), Outpost (ranged-only fight — the Signal Sentry's room), Elite (harder enemy, better reward), Treasure (no combat, choose one reward), Healing (restore), Shop (spend gold), Event (something unusual). Seven is enough.
+Combat (fight), Outpost (ranged-only fight — the Signal Sentry's room), Sanctum (the Signal Cultist's room), Elite (harder enemy, better reward), Treasure (no combat, choose one reward), Healing (restore), Shop (spend gold), Event (something unusual). Eight is enough.
 
 ## Seeds
 
@@ -73,7 +73,7 @@ Generation lives in `Shared/FloorPlan.luau` as a pure function of `(seed, depth,
 
 ## Biomes
 
-**The Corroded Choir** (floors 1–10) — a dead server-cathedral: rusted plate, exposed cabling, failing neon votives instead of candles, corridors that used to route signal instead of pilgrims. Enemies: Rust Husk (`Skeleton`), Signal Sentry (`Archer`) — a tripod targeting drone, fires a neon rail-bolt from range — Chrome Husk (`SkeletonElite`), and a third enemy still to design, keeping the `Cultist`-shaped role from the original outline: something that still believes the machine speaks. Boss: The Warden — reads equally well as a crypt guardian or a mad overseer AI, so it needed no rename, only a re-read.
+**The Corroded Choir** (floors 1–10) — a dead server-cathedral: rusted plate, exposed cabling, failing neon votives instead of candles, corridors that used to route signal instead of pilgrims. Enemies: Rust Husk (`Skeleton`) — a trade, stand and fight — Signal Sentry (`Archer`) — a tripod targeting drone, fires a neon rail-bolt from range, punishes standing still — Signal Cultist (`Cultist`) — a zealot that rushes and overloads its own battery on contact range, punishes standing *close*, its fuse a torso that heats to warning red as it counts down — and Chrome Husk (`SkeletonElite`), the same trade as the Rust Husk with the numbers turned up. Three enemies, three different reasons to move: back off, close in, or get clear. Boss: The Warden — reads equally well as a crypt guardian or a mad overseer AI, so it needed no rename, only a re-read.
 
 **Biome 2** (floors 11–20) — different rooms, enemies, hazards, music, boss, same setting family as biome 1 rather than the original "Cursed Forest" (that name was written before the setting pivot and no longer fits). Not built until 1–10 is genuinely playable.
 

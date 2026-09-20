@@ -256,6 +256,19 @@ Two Creator Store assets, verified insertable and free at time of writing, cover
 
 New spec: `tests/specs/Archer.luau` — the numbers (fragility, telegraph-vs-flight-time math, kiting band), and a live section confirming the bolt is a real travelling object, damages through the same i-frame gate as everything else, and the sentry actually backs away when crowded.
 
+## The Signal Cultist
+
+The third enemy `GAME_DESIGN.md` named alongside Skeleton and Archer, closing that gap. Reads as a cyborg zealot overloading its own battery into the machine: it rushes at 14 studs/s (faster than the Rust Husk's 11, still slower than the player's 16), arms a fuse the instant it comes within 8 studs, and detonates for area damage in a 9-stud radius rather than landing a normal hit. The torso tweens from resting ember-orange to warning red over the fuse's 0.9s, so the telegraph needs no separate VFX system.
+
+The design intent is the opposite of the other two enemies: the Rust Husk is a trade, the Signal Sentry is a threat you close on, the Cultist is a threat you back away from. Two properties make that honest rather than just "a delayed hit":
+
+- **The blast radius (9) is deliberately larger than the arming trigger (8).** If it were the reverse, standing still the instant it stops moving would already be safe, and the fuse would be decoration.
+- **Killing it before the fuse ends denies the explosion outright.** `detonate()` is only ever called from the fuse completing, never from taking lethal damage — a sword kill goes through the same `die()` every other enemy death does, with no area effect attached. This is the real counterplay for a player who reacts fast enough, not just running away.
+
+Wired into generation as a new **Sanctum** room (`RoomConfig.templates.Sanctum`, `encounter.kind = "Cultist"`), added to `FloorConfig.pool` — `generationVersion` bumped 5→6, golden hash regenerated. One more Creator Store asset (`cultistDetonation` in `AssetIds.luau`, verified insertable and free) covers the boom, broadcast through a new `Detonation` feedback kind that names no single target — a blast can catch several players or none, unlike `RangedImpact`.
+
+New spec: `tests/specs/Cultist.luau` — the safety property (blast radius exceeds trigger range) as an explicit assertion, a live section confirming it actually rushes and arms, that retreating past the blast radius after arming takes no damage, that standing in the blast when the fuse ends does, and that killing it early costs the player nothing.
+
 ## Next
 
 1. **You:** walk the slice and call both gates — Phase 1 (does swinging feel good?) and Phase 3 (is spawn → fight → win → leave fun?). Everything after this is built on those answers.

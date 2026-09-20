@@ -68,6 +68,33 @@ RoomConfig.templates = {
 		clearDelay = 0.6,
 	},
 
+	-- The third room the third enemy needed. Same "same plumbing, different kind"
+	-- pattern as Outpost -- a room's encounter is always one kind, so Cultist gets
+	-- its own room rather than a branch in placement code, exactly like Sentry did.
+	Sanctum = {
+		id = "Sanctum",
+		displayName = "Cultist Sanctum",
+		interior = Vector3.new(42, 18, 42),
+		wallThickness = 2,
+		floorThickness = 1,
+		doorway = { width = 10, height = 12 },
+		floorColor = Color3.fromRGB(52, 40, 36),
+		wallColor = Color3.fromRGB(66, 50, 44),
+		doorColor = Color3.fromRGB(34, 24, 20),
+		-- Ember-orange trim, matching the Cultist's own resting colour -- the same
+		-- read-the-room-before-the-door trick Outpost's cyan trim uses.
+		trimColor = Color3.fromRGB(210, 90, 50),
+		material = Enum.Material.CorrodedMetal,
+		doorMaterial = Enum.Material.Metal,
+		-- Smaller than Outpost's 20: these rushers need less standoff room than a
+		-- sniper does, but still enough to clear a blast radius of 9 once armed.
+		encounter = { kind = "Cultist", minCount = 1, maxCount = 3, radius = 17 },
+		doorTravel = 12,
+		doorTime = 0.55,
+		sealDelay = 0.25,
+		clearDelay = 0.6,
+	},
+
 	Elite = {
 		id = "Elite",
 		displayName = "Elite Room",

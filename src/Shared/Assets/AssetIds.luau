@@ -15,5 +15,6 @@ return {
 		-- Creator Store, verified insertable and free at the time of writing.
 		sentryBoltFire = "rbxassetid://135695524548843",
 		sentryBoltImpact = "rbxassetid://201858087",
+		cultistDetonation = "rbxassetid://129848017786439",
 	},
 }

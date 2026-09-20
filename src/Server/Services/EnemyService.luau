@@ -120,6 +120,27 @@ local function lunge(enemy: Enemy, degrees: number, seconds: number)
 	TweenService:Create(joint, TweenInfo.new(seconds, Enum.EasingStyle.Quad), { C0 = goal }):Play()
 end
 
+-- Gathers every alive player's character parts as an Include filter list, plus a
+-- lookup back from part to player. Shared by the projectile hit test and the
+-- explosion hit test below -- the query is identical, only what happens with the
+-- hits differs (one victim vs. every player in a radius).
+local function gatherPlayerRoots(): ({ BasePart }, { [BasePart]: Player })
+	local roots: { BasePart } = {}
+	local ownerOf: { [BasePart]: Player } = {}
+	for _, state in PlayerService.all() do
+		local character = state.character
+		if state.alive and character ~= nil and character.Parent ~= nil then
+			for _, part in character:GetChildren() do
+				if part:IsA("BasePart") then
+					table.insert(roots, part)
+					ownerOf[part] = state.player
+				end
+			end
+		end
+	end
+	return roots, ownerOf
+end
+
 -- -------------------------------------------------------------- projectiles
 
 local projectileParams = OverlapParams.new()
@@ -213,19 +234,7 @@ local function stepProjectiles(now: number, dt: number)
 		return
 	end
 
-	local roots: { BasePart } = {}
-	local ownerOf: { [BasePart]: Player } = {}
-	for _, state in PlayerService.all() do
-		local character = state.character
-		if state.alive and character ~= nil and character.Parent ~= nil then
-			for _, part in character:GetChildren() do
-				if part:IsA("BasePart") then
-					table.insert(roots, part)
-					ownerOf[part] = state.player
-				end
-			end
-		end
-	end
+	local roots, ownerOf = gatherPlayerRoots()
 
 	for _, projectile in projectiles do
 		-- Same self-healing rule the enemies use: FloorService clears Generated
@@ -345,6 +354,58 @@ local function die(enemy: Enemy, killer: Player?)
 		end
 		despawn(enemy)
 	end)
+end
+
+-- -------------------------------------------------------------- explosives
+
+local explosionParams = OverlapParams.new()
+explosionParams.FilterType = Enum.RaycastFilterType.Include
+
+-- The telegraph: the torso heats from its resting colour to the warning colour over
+-- the fuse duration, so the threat is legible without a separate VFX system. Purely
+-- cosmetic -- if the tween never completes because the model is destroyed first,
+-- nothing about the fuse timing or the explosion itself is affected.
+local function armFuse(enemy: Enemy, explosive: any, duration: number)
+	local torso = enemy.model:FindFirstChild("Torso")
+	if torso == nil or not torso:IsA("BasePart") then
+		return
+	end
+	TweenService:Create(torso, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+		Color = explosive.warningColor,
+	}):Play()
+end
+
+-- Area damage centred on the enemy itself, not a projectile: every player within
+-- radius is hit once, never `.Touched` for the same reason nothing else here is.
+local function detonate(enemy: Enemy, explosive: any)
+	-- Broadcast unconditionally, before the hit test: the boom is how a player who
+	-- successfully cleared the blast radius learns the fuse actually ended, not just
+	-- audible confirmation of getting hit.
+	CombatService.broadcast({ kind = "Detonation", actor = enemy.model })
+
+	local roots, ownerOf = gatherPlayerRoots()
+	if #roots == 0 then
+		return
+	end
+
+	explosionParams.FilterDescendantsInstances = roots
+	local hits =
+		workspace:GetPartBoundsInRadius(enemy.root.Position, explosive.radius, explosionParams)
+
+	-- Dedupe by player: a character contributes many parts, and this is a co-op
+	-- blast, not a per-limb one.
+	local hitPlayers: { [Player]: boolean } = {}
+	for _, hit in hits do
+		local player = ownerOf[hit]
+		if player ~= nil and not hitPlayers[player] then
+			hitPlayers[player] = true
+			CombatService.applyDamageToPlayer(player, explosive.damage, {
+				source = nil,
+				weapon = enemy.kind,
+				position = enemy.root.Position,
+			})
+		end
+	end
 end
 
 local function applyDamage(
@@ -584,6 +645,11 @@ local function stepEnemy(enemy: Enemy, now: number)
 			enemy.attackLanded = false
 			enemy.humanoid:MoveTo(enemy.root.Position)
 			lunge(enemy, -20, enemySpec.attackWindup * 0.8)
+
+			local explosive = enemySpec.explosive
+			if explosive ~= nil then
+				armFuse(enemy, explosive, enemySpec.attackWindup)
+			end
 		else
 			enemy.humanoid:MoveTo(targetRoot.Position)
 		end
@@ -604,6 +670,17 @@ local function stepEnemy(enemy: Enemy, now: number)
 					fireProjectile(enemy, ranged, target, now)
 				end
 				enemy.phaseEndsAt = now + enemySpec.attackRecovery
+				return
+			end
+
+			local explosive = enemySpec.explosive
+			if explosive ~= nil then
+				-- Deliberately NOT range-gated the way ranged/melee re-check above:
+				-- the fuse always goes off once it ends, wherever the enemy is. The
+				-- explosion's own radius, not attackRange, is what a player has to
+				-- clear -- that is the whole counterplay this enemy exists to teach.
+				detonate(enemy, explosive)
+				die(enemy, nil)
 				return
 			end
 

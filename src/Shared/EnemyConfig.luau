@@ -137,6 +137,67 @@ EnemyConfig.kinds = {
 		},
 	},
 
+	-- The third enemy the design always named alongside Skeleton and Archer, and the
+	-- third distinct decision the room asks: Skeleton is a trade, Archer is a threat
+	-- you have to close on, Cultist is a threat you have to back AWAY from. It rushes,
+	-- arms when it reaches you, and detonates for area damage rather than landing a
+	-- normal hit -- reads as a cyborg zealot overloading its own battery for the
+	-- machine. Killing it before the fuse ends denies the explosion entirely; letting
+	-- it finish arming means retreating out of the blast is the only counter left.
+	Cultist = {
+		id = "Cultist",
+		displayName = "Signal Cultist",
+
+		-- Fragile and fast, not tanky: the threat is the fuse, not a slugging match.
+		-- Two swings of the starting sword (18 damage) kills it outright.
+		maxHealth = 30,
+		-- Unused by the fuse path -- the explosion carries the damage -- kept in the
+		-- same field as every other kind so anything reading `spec.damage` is right.
+		damage = 30,
+		-- Faster than the Skeleton (11) so it closes distance urgently, still slower
+		-- than the player (16) so outrunning it once it commits is always possible.
+		walkSpeed = 14,
+
+		detectRange = 30,
+		leashRange = 55,
+		-- The fuse trigger range, not a melee reach: it arms just before touching you,
+		-- deliberately beyond the explosion's own radius so a player who does nothing
+		-- once it arms still has room to react.
+		attackRange = 8,
+
+		noticeTime = 0.3,
+		-- The fuse. Long enough that backing off after it commits is a real option,
+		-- the same design language as the Sentry's draw -- the telegraph, not a dodge
+		-- window, is the counterplay.
+		attackWindup = 0.9,
+		attackRecovery = 0,
+		attackCooldown = 0,
+
+		staggerTime = 0.2,
+		despawnDelay = 2.0,
+
+		goldReward = 10,
+
+		explosive = {
+			radius = 9,
+			damage = 30,
+			-- Warning color the torso tweens toward as the fuse burns down, so the
+			-- telegraph is visible without a separate VFX system.
+			warningColor = Color3.fromRGB(230, 60, 40),
+		},
+
+		rig = {
+			torsoSize = Vector3.new(1.9, 2, 1),
+			headSize = Vector3.new(1.35, 1.35, 1.35),
+			rootSize = Vector3.new(1.9, 2, 1),
+			boneColor = Color3.fromRGB(70, 64, 60),
+			-- Dark, ember-orange accents at rest -- a battery not yet overloaded.
+			torsoColor = Color3.fromRGB(90, 56, 40),
+			material = Enum.Material.CorrodedMetal,
+			lungeAngle = 16,
+		},
+	},
+
 	-- The Elite is a data entry, not a new enemy: same state machine, harder numbers.
 	-- 150 HP is 9 sword swings and 22 damage kills a full-health player in 5 hits, so
 	-- it is a genuine threat without being a boss — that is Phase 10.

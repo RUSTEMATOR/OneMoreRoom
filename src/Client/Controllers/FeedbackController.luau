@@ -122,6 +122,11 @@ local function onFeedback(payload: CombatTypes.Feedback)
 		end
 		flash(payload.target)
 		playSound(AssetIds.sounds.sentryBoltImpact, soundAnchorFor(payload.target))
+	elseif payload.kind == "Detonation" then
+		-- No per-victim flash here: unlike RangedImpact this payload names no
+		-- target, because a blast can catch several players or none. The boom
+		-- itself is the signal, audible whether or not it actually hit.
+		playSound(AssetIds.sounds.cultistDetonation, soundAnchorFor(payload.actor))
 	end
 end
 

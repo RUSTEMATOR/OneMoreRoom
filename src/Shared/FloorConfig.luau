@@ -13,7 +13,10 @@ local FloorConfig = {}
 -- v5: added "Outpost" to the pool (a ranged-only encounter room, the Signal Sentry's
 -- home). Adding to the pool changes `Rng:int(1, #pool)` for every existing seed, which
 -- is the expected cost of adding content -- see the note on FloorConfig.pool below.
-FloorConfig.generationVersion = 5
+--
+-- v6: added "Sanctum" (the Cultist's room), completing the Skeleton/Archer/Cultist
+-- trio the design has named since before this file existed.
+FloorConfig.generationVersion = 6
 
 FloorConfig.run = {
 	firstFloor = 1,
@@ -62,6 +65,7 @@ FloorConfig.pool = {
 	"Elite",
 	"Healing",
 	"Outpost",
+	"Sanctum",
 }
 
 -- Every tenth floor is a boss, regardless of what the seed would otherwise pick.

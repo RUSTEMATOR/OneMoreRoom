@@ -71,6 +71,15 @@ export type RangedImpact = {
 	position: Vector3,
 }
 
+-- The Cultist's fuse ending. `actor` is the enemy Model, still alive for a moment
+-- after this fires (despawn is on its usual delay) -- same reason RangedShot anchors
+-- to the enemy rather than to nothing. No single "target" the way RangedImpact
+-- names one: the blast can land on several players at once, or none.
+export type Detonation = {
+	kind: "Detonation",
+	actor: Model,
+}
+
 export type Feedback =
 	SwingStarted
 	| Hit
@@ -80,5 +89,6 @@ export type Feedback =
 	| TargetReset
 	| RangedShot
 	| RangedImpact
+	| Detonation
 
 return {}
